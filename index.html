@@ -5,30 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tank Battle Royale</title>
     <style>
-        canvas { border: 1px solid black; }
+        body, html { margin: 0; padding: 0; overflow: hidden; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        // Make canvas fullscreen
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
         // Map
         const map = {
-            width: 2000,
-            height: 1500,
-            roadWidth: 100,
+            width: 4000,
+            height: 3000,
+            roadWidth: 200,
             buildings: []
         };
 
         // Generate buildings
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 40; i++) {
             map.buildings.push({
                 x: Math.random() * map.width,
                 y: Math.random() * map.height,
-                width: 50 + Math.random() * 100,
-                height: 50 + Math.random() * 100
+                width: 100 + Math.random() * 200,
+                height: 100 + Math.random() * 200
             });
         }
 
@@ -38,10 +43,26 @@
             y: 300,
             speed: 3,
             angle: 0,
-            wheelAngle: 0,
+            steeringAngle: 0,
+            maxSteeringAngle: Math.PI / 4, // 45 degrees
             width: 60,
             height: 40
         };
+
+        // AI players
+        const aiPlayers = [];
+        for (let i = 0; i < 10; i++) {
+            aiPlayers.push({
+                x: Math.random() * map.width,
+                y: Math.random() * map.height,
+                speed: 2,
+                angle: Math.random() * Math.PI * 2,
+                steeringAngle: 0,
+                maxSteeringAngle: Math.PI / 4,
+                width: 60,
+                height: 40
+            });
+        }
 
         // Bullets
         const bullets = [];
@@ -53,42 +74,35 @@
         };
 
         function drawMap() {
-            // Draw grass
             ctx.fillStyle = '#7CFC00';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw dirt road
             ctx.fillStyle = '#8B4513';
             ctx.fillRect(map.width / 2 - map.roadWidth / 2 - camera.x, 0, map.roadWidth, canvas.height);
             ctx.fillRect(0, map.height / 2 - map.roadWidth / 2 - camera.y, canvas.width, map.roadWidth);
 
-            // Draw buildings
             ctx.fillStyle = '#808080';
             map.buildings.forEach(building => {
                 ctx.fillRect(building.x - camera.x, building.y - camera.y, building.width, building.height);
-                // Draw vent
                 ctx.fillStyle = '#A9A9A9';
                 ctx.fillRect(building.x + building.width / 2 - 10 - camera.x, building.y - 10 - camera.y, 20, 10);
                 ctx.fillStyle = '#808080';
             });
         }
 
-        function drawTank() {
+        function drawTank(tank, color) {
             ctx.save();
-            ctx.translate(player.x - camera.x, player.y - camera.y);
-            ctx.rotate(player.angle);
+            ctx.translate(tank.x - camera.x, tank.y - camera.y);
+            ctx.rotate(tank.angle);
 
-            // Tank body
-            ctx.fillStyle = '#006400';
-            ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+            ctx.fillStyle = color;
+            ctx.fillRect(-tank.width / 2, -tank.height / 2, tank.width, tank.height);
 
-            // Tank turret
             ctx.fillStyle = '#008000';
             ctx.fillRect(-10, -20, 20, 40);
 
-            // Tank wheels
             ctx.save();
-            ctx.rotate(player.wheelAngle);
+            ctx.rotate(tank.steeringAngle);
             ctx.fillStyle = '#000000';
             ctx.fillRect(-30, -25, 10, 10);
             ctx.fillRect(20, -25, 10, 10);
@@ -113,7 +127,6 @@
                 bullets[i].x += Math.cos(bullets[i].angle) * 10;
                 bullets[i].y += Math.sin(bullets[i].angle) * 10;
 
-                // Remove bullets that are out of bounds
                 if (bullets[i].x < 0 || bullets[i].x > map.width || bullets[i].y < 0 || bullets[i].y > map.height) {
                     bullets.splice(i, 1);
                 }
@@ -128,27 +141,64 @@
             });
         }
 
-        function update() {
-            if (keys.w) {
-                player.x += Math.cos(player.angle) * player.speed;
-                player.y += Math.sin(player.angle) * player.speed;
-            }
-            if (keys.s) {
-                player.x -= Math.cos(player.angle) * player.speed / 2;
-                player.y -= Math.sin(player.angle) * player.speed / 2;
-            }
-            if (keys.a) {
-                player.angle -= 0.05;
-                player.wheelAngle -= 0.1;
-            }
-            if (keys.d) {
-                player.angle += 0.05;
-                player.wheelAngle += 0.1;
+        function checkCollision(obj1, obj2) {
+            return obj1.x < obj2.x + obj2.width &&
+                   obj1.x + obj1.width > obj2.x &&
+                   obj1.y < obj2.y + obj2.height &&
+                   obj1.y + obj1.height > obj2.y;
+        }
+
+        function updateTank(tank, isPlayer) {
+            let newX = tank.x;
+            let newY = tank.y;
+
+            if (isPlayer) {
+                if (keys.w) {
+                    newX += Math.cos(tank.angle) * tank.speed;
+                    newY += Math.sin(tank.angle) * tank.speed;
+                }
+                if (keys.s) {
+                    newX -= Math.cos(tank.angle) * tank.speed / 2;
+                    newY -= Math.sin(tank.angle) * tank.speed / 2;
+                }
+                if (keys.a) tank.steeringAngle = Math.max(-tank.maxSteeringAngle, tank.steeringAngle - 0.05);
+                if (keys.d) tank.steeringAngle = Math.min(tank.maxSteeringAngle, tank.steeringAngle + 0.05);
+            } else {
+                // AI movement
+                newX += Math.cos(tank.angle) * tank.speed;
+                newY += Math.sin(tank.angle) * tank.speed;
+
+                if (Math.random() < 0.02) {
+                    tank.steeringAngle = (Math.random() - 0.5) * tank.maxSteeringAngle * 2;
+                }
             }
 
-            // Keep player in bounds
-            player.x = Math.max(0, Math.min(map.width, player.x));
-            player.y = Math.max(0, Math.min(map.height, player.y));
+            tank.angle += tank.steeringAngle * tank.speed / 30;
+
+            // Check collision with buildings
+            let collision = false;
+            map.buildings.forEach(building => {
+                if (checkCollision({x: newX, y: newY, width: tank.width, height: tank.height}, building)) {
+                    collision = true;
+                }
+            });
+
+            if (!collision) {
+                tank.x = newX;
+                tank.y = newY;
+            }
+
+            // Keep tank in bounds
+            tank.x = Math.max(0, Math.min(map.width, tank.x));
+            tank.y = Math.max(0, Math.min(map.height, tank.y));
+
+            // Gradually return steering to center
+            tank.steeringAngle *= 0.9;
+        }
+
+        function update() {
+            updateTank(player, true);
+            aiPlayers.forEach(ai => updateTank(ai, false));
 
             // Update camera
             camera.x = player.x - canvas.width / 2;
@@ -164,7 +214,8 @@
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawMap();
-            drawTank();
+            drawTank(player, '#006400');
+            aiPlayers.forEach(ai => drawTank(ai, '#8B0000'));
             drawBullets();
         }
 
@@ -187,6 +238,11 @@
         });
 
         canvas.addEventListener('click', shoot);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
 
         gameLoop();
     </script>
