@@ -19,7 +19,8 @@
             x: 400,
             y: 300,
             speed: 5,
-            angle: 0
+            angle: 0,
+            inVehicle: null
         };
 
         // AI players
@@ -59,13 +60,39 @@
 
         // Update game state
         function update() {
-            // Player movement
-            if (keys.w) player.y -= player.speed;
-            if (keys.s) player.y += player.speed;
-            if (keys.a) player.x -= player.speed;
-            if (keys.d) player.x += player.speed;
+            if (player.inVehicle) {
+                // Player is driving
+                const vehicle = player.inVehicle;
+                if (keys.w) {
+                    vehicle.x += Math.cos(vehicle.angle) * vehicle.speed;
+                    vehicle.y += Math.sin(vehicle.angle) * vehicle.speed;
+                }
+                if (keys.s) {
+                    vehicle.x -= Math.cos(vehicle.angle) * vehicle.speed / 2;
+                    vehicle.y -= Math.sin(vehicle.angle) * vehicle.speed / 2;
+                }
+                if (keys.a) vehicle.angle -= 0.05;
+                if (keys.d) vehicle.angle += 0.05;
 
-            // Player rotation
+                // Keep vehicle in bounds
+                vehicle.x = Math.max(0, Math.min(canvas.width - vehicle.width, vehicle.x));
+                vehicle.y = Math.max(0, Math.min(canvas.height - vehicle.height, vehicle.y));
+
+                player.x = vehicle.x + vehicle.width / 2;
+                player.y = vehicle.y + vehicle.height / 2;
+            } else {
+                // Player movement on foot
+                if (keys.w) player.y -= player.speed;
+                if (keys.s) player.y += player.speed;
+                if (keys.a) player.x -= player.speed;
+                if (keys.d) player.x += player.speed;
+
+                // Keep player in bounds
+                player.x = Math.max(0, Math.min(canvas.width, player.x));
+                player.y = Math.max(0, Math.min(canvas.height, player.y));
+            }
+
+            // Player rotation (always face cursor)
             player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
 
             // AI movement and vehicle interaction
@@ -123,16 +150,6 @@
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw player
-            drawCharacter(player.x, player.y, player.angle, 'blue');
-
-            // Draw AI players
-            aiPlayers.forEach(ai => {
-                if (!ai.inVehicle) {
-                    drawCharacter(ai.x, ai.y, ai.angle, 'red');
-                }
-            });
-
             // Draw vehicles
             vehicles.forEach(vehicle => {
                 ctx.save();
@@ -149,10 +166,20 @@
                 ctx.fillRect(-10, -15, 20, 30);
                 ctx.restore();
 
-                if (vehicle.driver) {
+                if (vehicle.driver && vehicle.driver !== player) {
                     drawCharacter(vehicle.x + vehicle.width/2, vehicle.y + vehicle.height/2, vehicle.angle, 'red');
                 }
             });
+
+            // Draw AI players
+            aiPlayers.forEach(ai => {
+                if (!ai.inVehicle) {
+                    drawCharacter(ai.x, ai.y, ai.angle, 'red');
+                }
+            });
+
+            // Draw player
+            drawCharacter(player.x, player.y, player.angle, 'blue');
         }
 
         function drawCharacter(x, y, angle, color) {
@@ -172,7 +199,24 @@
         const keys = {};
         const mouse = { x: 0, y: 0 };
 
-        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keydown', e => {
+            keys[e.key] = true;
+            if (e.key === 'e') {
+                if (player.inVehicle) {
+                    // Exit vehicle
+                    player.inVehicle.driver = null;
+                    player.inVehicle = null;
+                } else {
+                    // Try to enter a vehicle
+                    vehicles.forEach(vehicle => {
+                        if (!vehicle.driver && Math.hypot(vehicle.x + vehicle.width/2 - player.x, vehicle.y + vehicle.height/2 - player.y) < 30) {
+                            vehicle.driver = player;
+                            player.inVehicle = vehicle;
+                        }
+                    });
+                }
+            }
+        });
         window.addEventListener('keyup', e => keys[e.key] = false);
         canvas.addEventListener('mousemove', e => {
             const rect = canvas.getBoundingClientRect();
