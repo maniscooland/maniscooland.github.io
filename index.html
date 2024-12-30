@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Battle Royale</title>
+    <title>Tank Battle Royale</title>
     <style>
         canvas { border: 1px solid black; }
     </style>
@@ -14,227 +14,180 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Player
+        // Map
+        const map = {
+            width: 2000,
+            height: 1500,
+            roadWidth: 100,
+            buildings: []
+        };
+
+        // Generate buildings
+        for (let i = 0; i < 20; i++) {
+            map.buildings.push({
+                x: Math.random() * map.width,
+                y: Math.random() * map.height,
+                width: 50 + Math.random() * 100,
+                height: 50 + Math.random() * 100
+            });
+        }
+
+        // Player tank
         const player = {
             x: 400,
             y: 300,
-            speed: 5,
+            speed: 3,
             angle: 0,
-            inVehicle: null
+            wheelAngle: 0,
+            width: 60,
+            height: 40
         };
 
-        // AI players
-        const aiPlayers = [];
-        for (let i = 0; i < 10; i++) {
-            aiPlayers.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                angle: Math.random() * Math.PI * 2,
-                speed: 2,
-                moveTimer: 0,
-                moveInterval: Math.random() * 100 + 50,
-                inVehicle: null,
-                vehicleDirection: 1
+        // Bullets
+        const bullets = [];
+
+        // Camera
+        const camera = {
+            x: 0,
+            y: 0
+        };
+
+        function drawMap() {
+            // Draw grass
+            ctx.fillStyle = '#7CFC00';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw dirt road
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(map.width / 2 - map.roadWidth / 2 - camera.x, 0, map.roadWidth, canvas.height);
+            ctx.fillRect(0, map.height / 2 - map.roadWidth / 2 - camera.y, canvas.width, map.roadWidth);
+
+            // Draw buildings
+            ctx.fillStyle = '#808080';
+            map.buildings.forEach(building => {
+                ctx.fillRect(building.x - camera.x, building.y - camera.y, building.width, building.height);
+                // Draw vent
+                ctx.fillStyle = '#A9A9A9';
+                ctx.fillRect(building.x + building.width / 2 - 10 - camera.x, building.y - 10 - camera.y, 20, 10);
+                ctx.fillStyle = '#808080';
             });
         }
 
-        // Vehicles
-        const vehicles = [];
-        for (let i = 0; i < 5; i++) {
-            vehicles.push({
-                x: Math.random() * (canvas.width - 60),
-                y: Math.random() * (canvas.height - 40),
-                width: 60,
-                height: 40,
-                speed: 3,
-                angle: 0,
-                driver: null
+        function drawTank() {
+            ctx.save();
+            ctx.translate(player.x - camera.x, player.y - camera.y);
+            ctx.rotate(player.angle);
+
+            // Tank body
+            ctx.fillStyle = '#006400';
+            ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+
+            // Tank turret
+            ctx.fillStyle = '#008000';
+            ctx.fillRect(-10, -20, 20, 40);
+
+            // Tank wheels
+            ctx.save();
+            ctx.rotate(player.wheelAngle);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(-30, -25, 10, 10);
+            ctx.fillRect(20, -25, 10, 10);
+            ctx.fillRect(-30, 15, 10, 10);
+            ctx.fillRect(20, 15, 10, 10);
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        function drawBullets() {
+            ctx.fillStyle = '#FF0000';
+            bullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x - camera.x, bullet.y - camera.y, 3, 0, Math.PI * 2);
+                ctx.fill();
             });
         }
 
-        // Game loop
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].x += Math.cos(bullets[i].angle) * 10;
+                bullets[i].y += Math.sin(bullets[i].angle) * 10;
+
+                // Remove bullets that are out of bounds
+                if (bullets[i].x < 0 || bullets[i].x > map.width || bullets[i].y < 0 || bullets[i].y > map.height) {
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+
+        function shoot() {
+            bullets.push({
+                x: player.x + Math.cos(player.angle) * 40,
+                y: player.y + Math.sin(player.angle) * 40,
+                angle: player.angle
+            });
+        }
+
+        function update() {
+            if (keys.w) {
+                player.x += Math.cos(player.angle) * player.speed;
+                player.y += Math.sin(player.angle) * player.speed;
+            }
+            if (keys.s) {
+                player.x -= Math.cos(player.angle) * player.speed / 2;
+                player.y -= Math.sin(player.angle) * player.speed / 2;
+            }
+            if (keys.a) {
+                player.angle -= 0.05;
+                player.wheelAngle -= 0.1;
+            }
+            if (keys.d) {
+                player.angle += 0.05;
+                player.wheelAngle += 0.1;
+            }
+
+            // Keep player in bounds
+            player.x = Math.max(0, Math.min(map.width, player.x));
+            player.y = Math.max(0, Math.min(map.height, player.y));
+
+            // Update camera
+            camera.x = player.x - canvas.width / 2;
+            camera.y = player.y - canvas.height / 2;
+
+            // Keep camera in bounds
+            camera.x = Math.max(0, Math.min(map.width - canvas.width, camera.x));
+            camera.y = Math.max(0, Math.min(map.height - canvas.height, camera.y));
+
+            updateBullets();
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawMap();
+            drawTank();
+            drawBullets();
+        }
+
         function gameLoop() {
             update();
             render();
             requestAnimationFrame(gameLoop);
         }
 
-        // Update game state
-        function update() {
-            if (player.inVehicle) {
-                // Player is driving
-                const vehicle = player.inVehicle;
-                if (keys.w) {
-                    vehicle.x += Math.cos(vehicle.angle) * vehicle.speed;
-                    vehicle.y += Math.sin(vehicle.angle) * vehicle.speed;
-                }
-                if (keys.s) {
-                    vehicle.x -= Math.cos(vehicle.angle) * vehicle.speed / 2;
-                    vehicle.y -= Math.sin(vehicle.angle) * vehicle.speed / 2;
-                }
-                if (keys.a) vehicle.angle -= 0.05;
-                if (keys.d) vehicle.angle += 0.05;
-
-                // Keep vehicle in bounds
-                vehicle.x = Math.max(0, Math.min(canvas.width - vehicle.width, vehicle.x));
-                vehicle.y = Math.max(0, Math.min(canvas.height - vehicle.height, vehicle.y));
-
-                player.x = vehicle.x + vehicle.width / 2;
-                player.y = vehicle.y + vehicle.height / 2;
-            } else {
-                // Player movement on foot
-                if (keys.w) player.y -= player.speed;
-                if (keys.s) player.y += player.speed;
-                if (keys.a) player.x -= player.speed;
-                if (keys.d) player.x += player.speed;
-
-                // Keep player in bounds
-                player.x = Math.max(0, Math.min(canvas.width, player.x));
-                player.y = Math.max(0, Math.min(canvas.height, player.y));
-            }
-
-            // Player rotation (always face cursor, even in vehicle)
-            player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
-
-            // AI movement and vehicle interaction
-            aiPlayers.forEach(ai => {
-                if (ai.inVehicle) {
-                    // AI is driving
-                    const vehicle = ai.inVehicle;
-                    vehicle.x += Math.cos(vehicle.angle) * vehicle.speed * ai.vehicleDirection;
-                    vehicle.y += Math.sin(vehicle.angle) * vehicle.speed * ai.vehicleDirection;
-
-                    // Randomly change direction or go backwards
-                    if (Math.random() < 0.02) {
-                        vehicle.angle += (Math.random() - 0.5) * Math.PI / 4;
-                    }
-                    if (Math.random() < 0.01) {
-                        ai.vehicleDirection *= -1; // Switch between forward and backward
-                    }
-
-                    // Keep vehicle in bounds
-                    vehicle.x = Math.max(0, Math.min(canvas.width - vehicle.width, vehicle.x));
-                    vehicle.y = Math.max(0, Math.min(canvas.height - vehicle.height, vehicle.y));
-
-                    ai.x = vehicle.x + vehicle.width / 2;
-                    ai.y = vehicle.y + vehicle.height / 2;
-                    ai.angle = vehicle.angle; // Lock AI rotation to vehicle
-
-                    // Randomly exit vehicle
-                    if (Math.random() < 0.005) {
-                        ai.inVehicle.driver = null;
-                        ai.inVehicle = null;
-                        ai.x = vehicle.x + vehicle.width / 2;
-                        ai.y = vehicle.y + vehicle.height / 2;
-                        ai.vehicleDirection = 1; // Reset direction when exiting
-                    }
-                } else {
-                    // AI is on foot
-                    ai.moveTimer++;
-                    if (ai.moveTimer >= ai.moveInterval) {
-                        ai.angle = Math.random() * Math.PI * 2;
-                        ai.moveTimer = 0;
-                        ai.moveInterval = Math.random() * 100 + 50;
-                    }
-
-                    ai.x += Math.cos(ai.angle) * ai.speed;
-                    ai.y += Math.sin(ai.angle) * ai.speed;
-
-                    // Keep AI in bounds
-                    ai.x = Math.max(0, Math.min(canvas.width, ai.x));
-                    ai.y = Math.max(0, Math.min(canvas.height, ai.y));
-
-                    // Check for nearby vehicles to enter
-                    vehicles.forEach(vehicle => {
-                        if (!vehicle.driver && Math.hypot(vehicle.x + vehicle.width/2 - ai.x, vehicle.y + vehicle.height/2 - ai.y) < 30) {
-                            vehicle.driver = ai;
-                            ai.inVehicle = vehicle;
-                            ai.vehicleDirection = 1; // Start moving forward when entering
-                        }
-                    });
-                }
-            });
-        }
-
-        // Render game objects
-        function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw vehicles
-            vehicles.forEach(vehicle => {
-                ctx.save();
-                ctx.translate(vehicle.x + vehicle.width/2, vehicle.y + vehicle.height/2);
-                ctx.rotate(vehicle.angle);
-                ctx.fillStyle = 'gray';
-                ctx.fillRect(-vehicle.width/2, -vehicle.height/2, vehicle.width, vehicle.height);
-                ctx.fillStyle = 'black';
-                ctx.fillRect(-vehicle.width/2, -vehicle.height/2, 10, 10);
-                ctx.fillRect(vehicle.width/2 - 10, -vehicle.height/2, 10, 10);
-                ctx.fillRect(-vehicle.width/2, vehicle.height/2 - 10, 10, 10);
-                ctx.fillRect(vehicle.width/2 - 10, vehicle.height/2 - 10, 10, 10);
-                ctx.fillStyle = 'lightblue';
-                ctx.fillRect(-10, -15, 20, 30);
-                ctx.restore();
-
-                if (vehicle.driver && vehicle.driver !== player) {
-                    drawCharacter(vehicle.x + vehicle.width/2, vehicle.y + vehicle.height/2, vehicle.angle, 'red');
-                }
-            });
-
-            // Draw AI players
-            aiPlayers.forEach(ai => {
-                if (!ai.inVehicle) {
-                    drawCharacter(ai.x, ai.y, ai.angle, 'red');
-                }
-            });
-
-            // Draw player
-            drawCharacter(player.x, player.y, player.angle, 'blue');
-        }
-
-        function drawCharacter(x, y, angle, color) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(angle);
-            ctx.beginPath();
-            ctx.arc(0, 0, 10, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-            ctx.fillRect(0, -15, 3, 15);  // Right hand
-            ctx.fillRect(-3, -15, 3, 15); // Left hand
-            ctx.restore();
-        }
-
-        // Input handling
         const keys = {};
-        const mouse = { x: 0, y: 0 };
 
-        window.addEventListener('keydown', e => {
-            keys[e.key] = true;
-            if (e.key === 'e') {
-                if (player.inVehicle) {
-                    // Exit vehicle
-                    player.inVehicle.driver = null;
-                    player.inVehicle = null;
-                } else {
-                    // Try to enter a vehicle
-                    vehicles.forEach(vehicle => {
-                        if (!vehicle.driver && Math.hypot(vehicle.x + vehicle.width/2 - player.x, vehicle.y + vehicle.height/2 - player.y) < 30) {
-                            vehicle.driver = player;
-                            player.inVehicle = vehicle;
-                        }
-                    });
-                }
-            }
-        });
+        window.addEventListener('keydown', e => keys[e.key] = true);
         window.addEventListener('keyup', e => keys[e.key] = false);
+
         canvas.addEventListener('mousemove', e => {
             const rect = canvas.getBoundingClientRect();
-            mouse.x = e.clientX - rect.left;
-            mouse.y = e.clientY - rect.top;
+            const mouseX = e.clientX - rect.left + camera.x;
+            const mouseY = e.clientY - rect.top + camera.y;
+            player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
         });
 
-        // Start the game
+        canvas.addEventListener('click', shoot);
+
         gameLoop();
     </script>
 </body>
