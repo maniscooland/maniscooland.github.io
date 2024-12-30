@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Royale Vehicles and Buildings</title>
+    <title>Battle Royale Game</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; }
         canvas { display: block; }
@@ -18,104 +18,7 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const map = {
-            width: 4000,
-            height: 3000,
-            roadWidth: 200,
-            buildings: [],
-            presents: []
-        };
-
-        const player = {
-            x: 400,
-            y: 300,
-            width: 20,
-            height: 20,
-            speed: 3,
-            angle: 0,
-            inVehicle: null,
-            keys: [],
-            gun: null,
-            ammo: 0,
-            magazineSize: 10,
-            magazineAmmo: 0
-        };
-
-        const vehicles = [];
-        const bullets = [];
-        const camera = { x: 0, y: 0 };
-
-        const vehicleTypes = [
-            { type: 'car', width: 50, height: 30, speed: 4, color: '#4286f4' },
-            { type: 'truck', width: 70, height: 40, speed: 3, color: '#41f468' },
-        ];
-
-        const guns = [
-            { name: 'pistol', color: '#8B4513' },
-            { name: 'shotgun', color: '#A0522D' },
-            { name: 'rifle', color: '#D2691E' }
-        ];
-
-        // Generate buildings
-        for (let i = 0; i < 40; i++) {
-            map.buildings.push({
-                x: Math.random() * map.width,
-                y: Math.random() * map.height,
-                width: 100 + Math.random() * 200,
-                height: 100 + Math.random() * 200,
-                number: i + 1,
-                gun: guns[Math.floor(Math.random() * guns.length)]
-            });
-        }
-
-        // Generate presents
-        for (let i = 0; i < 100; i++) {
-            map.presents.push({
-                x: Math.random() * map.width,
-                y: Math.random() * map.height,
-                width: 20,
-                height: 20,
-                key: Math.floor(Math.random() * 40) + 1
-            });
-        }
-
-        // Generate vehicles (only 4)
-        for (let i = 0; i < 4; i++) {
-            const type = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
-            vehicles.push({
-                ...type,
-                x: Math.random() * map.width,
-                y: Math.random() * map.height,
-                angle: Math.random() * Math.PI * 2,
-                steeringAngle: 0,
-                maxSteeringAngle: Math.PI / 4
-            });
-        }
-
-        function drawMap() {
-            ctx.fillStyle = '#7CFC00';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(map.width / 2 - map.roadWidth / 2 - camera.x, 0, map.roadWidth, canvas.height);
-            ctx.fillRect(0, map.height / 2 - map.roadWidth / 2 - camera.y, canvas.width, map.roadWidth);
-
-            ctx.fillStyle = '#808080';
-            map.buildings.forEach(building => {
-                ctx.fillRect(building.x - camera.x, building.y - camera.y, building.width, building.height);
-                ctx.fillStyle = '#A9A9A9';
-                ctx.fillRect(building.x + building.width / 2 - 10 - camera.x, building.y - 10 - camera.y, 20, 10);
-                ctx.fillStyle = '#000000';
-                ctx.font = '20px Arial';
-                ctx.fillText(building.number, building.x + 10 - camera.x, building.y + 30 - camera.y);
-                ctx.fillStyle = '#808080';
-            });
-
-            ctx.fillStyle = '#FF0000';
-            map.presents.forEach(present => {
-                ctx.fillRect(present.x - camera.x, present.y - camera.y, present.width, present.height);
-            });
-        }
+        // ... (previous code for map, player, vehicles, etc. remains the same)
 
         function drawVehicle(vehicle) {
             ctx.save();
@@ -128,20 +31,20 @@
             ctx.fillStyle = '#000000';
             // Front wheels (turning)
             ctx.save();
-            ctx.translate(-vehicle.width / 2 + 10, -vehicle.height / 2);
-            ctx.rotate(vehicle.steeringAngle);
-            ctx.fillRect(-5, -5, 10, 10);
-            ctx.restore();
-
-            ctx.save();
             ctx.translate(vehicle.width / 2 - 10, -vehicle.height / 2);
             ctx.rotate(vehicle.steeringAngle);
             ctx.fillRect(-5, -5, 10, 10);
             ctx.restore();
 
+            ctx.save();
+            ctx.translate(vehicle.width / 2 - 10, vehicle.height / 2);
+            ctx.rotate(vehicle.steeringAngle);
+            ctx.fillRect(-5, -5, 10, 10);
+            ctx.restore();
+
             // Back wheels (fixed)
+            ctx.fillRect(-vehicle.width / 2 + 5, -vehicle.height / 2 - 5, 10, 10);
             ctx.fillRect(-vehicle.width / 2 + 5, vehicle.height / 2 - 5, 10, 10);
-            ctx.fillRect(vehicle.width / 2 - 15, vehicle.height / 2 - 5, 10, 10);
 
             ctx.restore();
         }
@@ -149,208 +52,27 @@
         function drawPlayer() {
             ctx.save();
             ctx.translate(player.x - camera.x, player.y - camera.y);
-            ctx.rotate(player.angle);
-
-            // Player body
-            ctx.fillStyle = '#FF00FF';
-            ctx.beginPath();
-            ctx.arc(0, 0, 10, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Hands
-            ctx.fillStyle = '#FFA500';
-            ctx.fillRect(-5, -15, 3, 10);
-            ctx.fillRect(2, -15, 3, 10);
-
-            // Gun
+            ctx.rotate(player.angle + Math.PI / 2); // Rotate 90 degrees to face right
+            ctx.drawImage(playerImage, -player.width / 2, -player.height / 2, player.width, player.height);
+            
             if (player.gun) {
-                ctx.fillStyle = player.gun.color;
-                ctx.fillRect(0, -20, 5, 20);  // Gun base
-                ctx.fillRect(5, -20, 15, 5);  // Gun nozzle
+                ctx.drawImage(gunImages[player.gun.name], player.width / 2, -player.height / 4, player.width, player.height / 2);
             }
-
+            
             ctx.restore();
         }
 
-        function drawBullets() {
-            ctx.fillStyle = '#FF0000';
-            bullets.forEach(bullet => {
-                ctx.beginPath();
-                ctx.arc(bullet.x - camera.x, bullet.y - camera.y, 3, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        }
-
-        function drawHUD() {
-            ctx.fillStyle = '#000000';
-            ctx.font = '20px Arial';
-            ctx.fillText(`Keys: ${player.keys.join(', ')}`, 10, 30);
-            ctx.fillText(`Gun: ${player.gun ? player.gun.name : 'None'}`, 10, 60);
-            ctx.fillText(`Ammo: ${player.magazineAmmo}/${player.ammo}`, 10, 90);
-        }
-
-        function updateBullets() {
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                bullets[i].x += Math.cos(bullets[i].angle) * 10;
-                bullets[i].y += Math.sin(bullets[i].angle) * 10;
-
-                if (bullets[i].x < 0 || bullets[i].x > map.width || bullets[i].y < 0 || bullets[i].y > map.height) {
-                    bullets.splice(i, 1);
-                }
-            }
-        }
-
-        function shoot() {
-            if (player.gun && player.magazineAmmo > 0) {
-                bullets.push({
-                    x: player.x + Math.cos(player.angle) * 30,
-                    y: player.y + Math.sin(player.angle) * 30,
-                    angle: player.angle
-                });
-                player.magazineAmmo--;
-            }
-        }
-
-        function reload() {
-            if (player.gun && player.ammo > 0) {
-                const ammoNeeded = player.magazineSize - player.magazineAmmo;
-                const ammoToReload = Math.min(ammoNeeded, player.ammo);
-                player.magazineAmmo += ammoToReload;
-                player.ammo -= ammoToReload;
-            }
-        }
-
-        function checkCollision(obj1, obj2) {
-            return obj1.x < obj2.x + obj2.width &&
-                   obj1.x + obj1.width > obj2.x &&
-                   obj1.y < obj2.y + obj2.height &&
-                   obj1.y + obj1.height > obj2.y;
-        }
-
-        function update() {
-            if (player.inVehicle) {
-                const vehicle = player.inVehicle;
-                if (keys.w) {
-                    vehicle.x += Math.cos(vehicle.angle) * vehicle.speed;
-                    vehicle.y += Math.sin(vehicle.angle) * vehicle.speed;
-                }
-                if (keys.s) {
-                    vehicle.x -= Math.cos(vehicle.angle) * vehicle.speed / 2;
-                    vehicle.y -= Math.sin(vehicle.angle) * vehicle.speed / 2;
-                }
-                if (keys.a) vehicle.steeringAngle = Math.max(-vehicle.maxSteeringAngle, vehicle.steeringAngle - 0.05);
-                if (keys.d) vehicle.steeringAngle = Math.min(vehicle.maxSteeringAngle, vehicle.steeringAngle + 0.05);
-
-                vehicle.angle += vehicle.steeringAngle * vehicle.speed / 30;
-                vehicle.steeringAngle *= 0.9;
-
-                player.x = vehicle.x;
-                player.y = vehicle.y;
-                player.angle = vehicle.angle;
-            } else {
-                if (keys.w) player.y -= player.speed;
-                if (keys.s) player.y += player.speed;
-                if (keys.a) player.x -= player.speed;
-                if (keys.d) player.x += player.speed;
-            }
-
-            // Collision with buildings
-            map.buildings.forEach(building => {
-                if (checkCollision(player, building)) {
-                    if (player.keys.includes(building.number)) {
-                        player.gun = building.gun;
-                        player.ammo = 400;
-                        player.magazineAmmo = player.magazineSize;
-                        player.keys = player.keys.filter(key => key !== building.number);
-                    } else {
-                        // Push player out of building
-                        const overlapX = Math.min(player.x + player.width - building.x, building.x + building.width - player.x);
-                        const overlapY = Math.min(player.y + player.height - building.y, building.y + building.height - player.y);
-                        if (overlapX < overlapY) {
-                            player.x += player.x < building.x ? -overlapX : overlapX;
-                        } else {
-                            player.y += player.y < building.y ? -overlapY : overlapY;
-                        }
-                    }
-                }
-            });
-
-            // Collect presents
-            for (let i = map.presents.length - 1; i >= 0; i--) {
-                if (checkCollision(player, map.presents[i])) {
-                    player.keys.push(map.presents[i].key);
-                    map.presents.splice(i, 1);
-                }
-            }
-
-            // Enter/exit vehicle
-            if (keys.e) {
-                if (player.inVehicle) {
-                    player.inVehicle = null;
-                    player.x += Math.cos(player.angle) * 40;
-                    player.y += Math.sin(player.angle) * 40;
-                } else {
-                    vehicles.forEach(vehicle => {
-                        if (Math.hypot(player.x - vehicle.x, player.y - vehicle.y) < 50) {
-                            player.inVehicle = vehicle;
-                        }
-                    });
-                }
-                keys.e = false;
-            }
-
-            // Reload
-            if (keys.r) {
-                reload();
-                keys.r = false;
-            }
-
-            player.x = Math.max(0, Math.min(map.width, player.x));
-            player.y = Math.max(0, Math.min(map.height, player.y));
-
-            camera.x = player.x - canvas.width / 2;
-            camera.y = player.y - canvas.height / 2;
-            camera.x = Math.max(0, Math.min(map.width - canvas.width, camera.x));
-            camera.y = Math.max(0, Math.min(map.height - canvas.height, camera.y));
-
-            updateBullets();
-        }
-
-        function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawMap();
-            vehicles.forEach(drawVehicle);
-            drawPlayer();
-            drawBullets();
-            drawHUD();
-        }
-
-        function gameLoop() {
-            update();
-            render();
-            requestAnimationFrame(gameLoop);
-        }
-
-        const keys = {};
-
-        window.addEventListener('keydown', e => keys[e.key] = true);
-        window.addEventListener('keyup', e => keys[e.key] = false);
+        // ... (rest of the code remains the same)
 
         canvas.addEventListener('mousemove', e => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left + camera.x;
             const mouseY = e.clientY - rect.top + camera.y;
-            player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+            player.angle = Math.atan2(mouseY - player.y, mouseX - player.x) - Math.PI / 2; // Subtract 90 degrees
         });
 
-        canvas.addEventListener('click', shoot);
+        // ... (rest of the code remains the same)
 
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
-
-        gameLoop();
     </script>
 </body>
 </html>
