@@ -1,131 +1,187 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity WebGL Player | Platformer game</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
-      </div>
-      <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-webgl-logo"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">Platformer game</div>
-      </div>
-    </div>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Battle Royale</title>
+    <style>
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
     <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-      var container = document.querySelector("#unity-container");
-      var canvas = document.querySelector("#unity-canvas");
-      var loadingBar = document.querySelector("#unity-loading-bar");
-      var progressBarFull = document.querySelector("#unity-progress-bar-full");
-      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
-      var warningBanner = document.querySelector("#unity-warning");
+        // Player
+        const player = {
+            x: 400,
+            y: 300,
+            speed: 5,
+            angle: 0
+        };
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
-      function unityShowBanner(msg, type) {
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        // AI players
+        const aiPlayers = [];
+        for (let i = 0; i < 10; i++) {
+            aiPlayers.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                angle: Math.random() * Math.PI * 2,
+                speed: 2,
+                moveTimer: 0,
+                moveInterval: Math.random() * 100 + 50,
+                inVehicle: null
+            });
         }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
+
+        // Vehicles
+        const vehicles = [];
+        for (let i = 0; i < 5; i++) {
+            vehicles.push({
+                x: Math.random() * (canvas.width - 60),
+                y: Math.random() * (canvas.height - 40),
+                width: 60,
+                height: 40,
+                speed: 3,
+                angle: 0,
+                driver: null
+            });
         }
-        updateBannerVisibility();
-      }
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/build.loader.js";
-      var config = {
-        dataUrl: buildUrl + "/build.data.br",
-        frameworkUrl: buildUrl + "/build.framework.js.br",
-        codeUrl: buildUrl + "/build.wasm.br",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "Platformer game",
-        productVersion: "1.0",
-        showBanner: unityShowBanner,
-      };
+        // Game loop
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
 
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
+        // Update game state
+        function update() {
+            // Player movement
+            if (keys.w) player.y -= player.speed;
+            if (keys.s) player.y += player.speed;
+            if (keys.a) player.x -= player.speed;
+            if (keys.d) player.x += player.speed;
 
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
+            // Player rotation
+            player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
+            // AI movement and vehicle interaction
+            aiPlayers.forEach(ai => {
+                if (ai.inVehicle) {
+                    // AI is driving
+                    const vehicle = ai.inVehicle;
+                    vehicle.x += Math.cos(vehicle.angle) * vehicle.speed;
+                    vehicle.y += Math.sin(vehicle.angle) * vehicle.speed;
 
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        container.className = "unity-mobile";
-        canvas.className = "unity-mobile";
+                    // Randomly change direction
+                    if (Math.random() < 0.02) {
+                        vehicle.angle += (Math.random() - 0.5) * Math.PI / 4;
+                    }
 
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
+                    // Keep vehicle in bounds
+                    vehicle.x = Math.max(0, Math.min(canvas.width - vehicle.width, vehicle.x));
+                    vehicle.y = Math.max(0, Math.min(canvas.height - vehicle.height, vehicle.y));
 
+                    // Randomly exit vehicle
+                    if (Math.random() < 0.005) {
+                        ai.inVehicle.driver = null;
+                        ai.inVehicle = null;
+                        ai.x = vehicle.x + vehicle.width / 2;
+                        ai.y = vehicle.y + vehicle.height / 2;
+                    }
+                } else {
+                    // AI is on foot
+                    ai.moveTimer++;
+                    if (ai.moveTimer >= ai.moveInterval) {
+                        ai.angle = Math.random() * Math.PI * 2;
+                        ai.moveTimer = 0;
+                        ai.moveInterval = Math.random() * 100 + 50;
+                    }
 
-      } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+                    ai.x += Math.cos(ai.angle) * ai.speed;
+                    ai.y += Math.sin(ai.angle) * ai.speed;
 
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
-      }
+                    // Keep AI in bounds
+                    ai.x = Math.max(0, Math.min(canvas.width, ai.x));
+                    ai.y = Math.max(0, Math.min(canvas.height, ai.y));
 
-      loadingBar.style.display = "block";
+                    // Check for nearby vehicles to enter
+                    vehicles.forEach(vehicle => {
+                        if (!vehicle.driver && Math.hypot(vehicle.x + vehicle.width/2 - ai.x, vehicle.y + vehicle.height/2 - ai.y) < 30) {
+                            vehicle.driver = ai;
+                            ai.inVehicle = vehicle;
+                        }
+                    });
+                }
+            });
+        }
 
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = 100 * progress + "%";
-              }).then((unityInstance) => {
-                loadingBar.style.display = "none";
-                fullscreenButton.onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-              }).catch((message) => {
-                alert(message);
-              });
-            };
+        // Render game objects
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      document.body.appendChild(script);
+            // Draw player
+            drawCharacter(player.x, player.y, player.angle, 'blue');
 
+            // Draw AI players
+            aiPlayers.forEach(ai => {
+                if (!ai.inVehicle) {
+                    drawCharacter(ai.x, ai.y, ai.angle, 'red');
+                }
+            });
+
+            // Draw vehicles
+            vehicles.forEach(vehicle => {
+                ctx.save();
+                ctx.translate(vehicle.x + vehicle.width/2, vehicle.y + vehicle.height/2);
+                ctx.rotate(vehicle.angle);
+                ctx.fillStyle = 'gray';
+                ctx.fillRect(-vehicle.width/2, -vehicle.height/2, vehicle.width, vehicle.height);
+                ctx.fillStyle = 'black';
+                ctx.fillRect(-vehicle.width/2, -vehicle.height/2, 10, 10);
+                ctx.fillRect(vehicle.width/2 - 10, -vehicle.height/2, 10, 10);
+                ctx.fillRect(-vehicle.width/2, vehicle.height/2 - 10, 10, 10);
+                ctx.fillRect(vehicle.width/2 - 10, vehicle.height/2 - 10, 10, 10);
+                ctx.fillStyle = 'lightblue';
+                ctx.fillRect(-10, -15, 20, 30);
+                ctx.restore();
+
+                if (vehicle.driver) {
+                    drawCharacter(vehicle.x + vehicle.width/2, vehicle.y + vehicle.height/2, vehicle.angle, 'red');
+                }
+            });
+        }
+
+        function drawCharacter(x, y, angle, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.fillRect(-5, -15, 3, 10);
+            ctx.fillRect(2, -15, 3, 10);
+            ctx.restore();
+        }
+
+        // Input handling
+        const keys = {};
+        const mouse = { x: 0, y: 0 };
+
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+
+        // Start the game
+        gameLoop();
     </script>
-  </body>
+</body>
 </html>
