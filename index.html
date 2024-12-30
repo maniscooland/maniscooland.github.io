@@ -45,7 +45,6 @@
         const vehicleTypes = [
             { type: 'car', width: 50, height: 30, speed: 4, color: '#4286f4' },
             { type: 'truck', width: 70, height: 40, speed: 3, color: '#41f468' },
-            { type: 'tank', width: 60, height: 40, speed: 2, color: '#006400' }
         ];
 
         const guns = ['pistol', 'shotgun', 'rifle'];
@@ -73,8 +72,8 @@
             });
         }
 
-        // Generate vehicles
-        for (let i = 0; i < 20; i++) {
+        // Generate vehicles (only 4)
+        for (let i = 0; i < 4; i++) {
             const type = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
             vehicles.push({
                 ...type,
@@ -119,17 +118,11 @@
             ctx.fillStyle = vehicle.color;
             ctx.fillRect(-vehicle.width / 2, -vehicle.height / 2, vehicle.width, vehicle.height);
 
-            if (vehicle.type === 'tank') {
-                ctx.fillStyle = '#008000';
-                ctx.fillRect(-10, -20, 20, 40);
-            }
-
-            ctx.save();
-            ctx.rotate(vehicle.steeringAngle);
             ctx.fillStyle = '#000000';
             ctx.fillRect(-vehicle.width / 2 + 5, -vehicle.height / 2 - 5, 10, 10);
             ctx.fillRect(vehicle.width / 2 - 15, -vehicle.height / 2 - 5, 10, 10);
-            ctx.restore();
+            ctx.fillRect(-vehicle.width / 2 + 5, vehicle.height / 2 - 5, 10, 10);
+            ctx.fillRect(vehicle.width / 2 - 15, vehicle.height / 2 - 5, 10, 10);
 
             ctx.restore();
         }
@@ -139,7 +132,11 @@
             ctx.translate(player.x - camera.x, player.y - camera.y);
             ctx.rotate(player.angle);
             ctx.fillStyle = '#FF00FF';
-            ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(-5, -15, 3, 10);
+            ctx.fillRect(2, -15, 3, 10);
             ctx.restore();
         }
 
@@ -245,9 +242,11 @@
             if (keys.e) {
                 if (player.inVehicle) {
                     player.inVehicle = null;
+                    player.x += Math.cos(player.angle) * 40;
+                    player.y += Math.sin(player.angle) * 40;
                 } else {
                     vehicles.forEach(vehicle => {
-                        if (checkCollision(player, vehicle)) {
+                        if (Math.hypot(player.x - vehicle.x, player.y - vehicle.y) < 50) {
                             player.inVehicle = vehicle;
                         }
                     });
