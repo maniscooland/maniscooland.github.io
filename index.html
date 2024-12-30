@@ -81,7 +81,6 @@
 
                 player.x = vehicle.x + vehicle.width / 2;
                 player.y = vehicle.y + vehicle.height / 2;
-                player.angle = vehicle.angle; // Lock player rotation to vehicle
             } else {
                 // Player movement on foot
                 if (keys.w) player.y -= player.speed;
@@ -201,8 +200,8 @@
             ctx.arc(0, 0, 10, 0, Math.PI * 2);
             ctx.fillStyle = color;
             ctx.fill();
-            ctx.fillRect(-5, -15, 3, 10);
-            ctx.fillRect(2, -15, 3, 10);
+            ctx.fillRect(0, -15, 3, 15);  // Right hand
+            ctx.fillRect(-3, -15, 3, 15); // Left hand
             ctx.restore();
         }
 
