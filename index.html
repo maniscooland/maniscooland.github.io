@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tank Battle Royale</title>
+    <title>Battle Royale Vehicles</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; }
         canvas { display: block; }
@@ -15,11 +15,9 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Make canvas fullscreen
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Map
         const map = {
             width: 4000,
             height: 3000,
@@ -27,7 +25,6 @@
             buildings: []
         };
 
-        // Generate buildings
         for (let i = 0; i < 40; i++) {
             map.buildings.push({
                 x: Math.random() * map.width,
@@ -37,41 +34,36 @@
             });
         }
 
-        // Player tank
-        const player = {
-            x: 400,
-            y: 300,
-            speed: 3,
-            angle: 0,
-            steeringAngle: 0,
-            maxSteeringAngle: Math.PI / 4, // 45 degrees
-            width: 60,
-            height: 40
-        };
+        const vehicleTypes = [
+            { type: 'car', width: 50, height: 30, speed: 4, color: '#4286f4' },
+            { type: 'truck', width: 70, height: 40, speed: 3, color: '#41f468' },
+            { type: 'tank', width: 60, height: 40, speed: 2, color: '#006400' }
+        ];
 
-        // AI players
-        const aiPlayers = [];
-        for (let i = 0; i < 10; i++) {
-            aiPlayers.push({
+        function createVehicle(isPlayer = false) {
+            const type = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
+            return {
+                ...type,
                 x: Math.random() * map.width,
                 y: Math.random() * map.height,
-                speed: 2,
                 angle: Math.random() * Math.PI * 2,
                 steeringAngle: 0,
                 maxSteeringAngle: Math.PI / 4,
-                width: 60,
-                height: 40
-            });
+                isPlayer: isPlayer
+            };
         }
 
-        // Bullets
-        const bullets = [];
+        const player = createVehicle(true);
+        player.x = 400;
+        player.y = 300;
 
-        // Camera
-        const camera = {
-            x: 0,
-            y: 0
-        };
+        const aiVehicles = [];
+        for (let i = 0; i < 20; i++) {
+            aiVehicles.push(createVehicle());
+        }
+
+        const bullets = [];
+        const camera = { x: 0, y: 0 };
 
         function drawMap() {
             ctx.fillStyle = '#7CFC00';
@@ -90,24 +82,24 @@
             });
         }
 
-        function drawTank(tank, color) {
+        function drawVehicle(vehicle) {
             ctx.save();
-            ctx.translate(tank.x - camera.x, tank.y - camera.y);
-            ctx.rotate(tank.angle);
+            ctx.translate(vehicle.x - camera.x, vehicle.y - camera.y);
+            ctx.rotate(vehicle.angle);
 
-            ctx.fillStyle = color;
-            ctx.fillRect(-tank.width / 2, -tank.height / 2, tank.width, tank.height);
+            ctx.fillStyle = vehicle.color;
+            ctx.fillRect(-vehicle.width / 2, -vehicle.height / 2, vehicle.width, vehicle.height);
 
-            ctx.fillStyle = '#008000';
-            ctx.fillRect(-10, -20, 20, 40);
+            if (vehicle.type === 'tank') {
+                ctx.fillStyle = '#008000';
+                ctx.fillRect(-10, -20, 20, 40);
+            }
 
             ctx.save();
-            ctx.rotate(tank.steeringAngle);
+            ctx.rotate(vehicle.steeringAngle);
             ctx.fillStyle = '#000000';
-            ctx.fillRect(-30, -25, 10, 10);
-            ctx.fillRect(20, -25, 10, 10);
-            ctx.fillRect(-30, 15, 10, 10);
-            ctx.fillRect(20, 15, 10, 10);
+            ctx.fillRect(-vehicle.width / 2 + 5, -vehicle.height / 2 - 5, 10, 10);
+            ctx.fillRect(vehicle.width / 2 - 15, -vehicle.height / 2 - 5, 10, 10);
             ctx.restore();
 
             ctx.restore();
@@ -134,11 +126,13 @@
         }
 
         function shoot() {
-            bullets.push({
-                x: player.x + Math.cos(player.angle) * 40,
-                y: player.y + Math.sin(player.angle) * 40,
-                angle: player.angle
-            });
+            if (player.type === 'tank') {
+                bullets.push({
+                    x: player.x + Math.cos(player.angle) * 40,
+                    y: player.y + Math.sin(player.angle) * 40,
+                    angle: player.angle
+                });
+            }
         }
 
         function checkCollision(obj1, obj2) {
@@ -148,63 +142,57 @@
                    obj1.y + obj1.height > obj2.y;
         }
 
-        function updateTank(tank, isPlayer) {
-            let newX = tank.x;
-            let newY = tank.y;
+        function updateVehicle(vehicle) {
+            let newX = vehicle.x;
+            let newY = vehicle.y;
 
-            if (isPlayer) {
+            if (vehicle.isPlayer) {
                 if (keys.w) {
-                    newX += Math.cos(tank.angle) * tank.speed;
-                    newY += Math.sin(tank.angle) * tank.speed;
+                    newX += Math.cos(vehicle.angle) * vehicle.speed;
+                    newY += Math.sin(vehicle.angle) * vehicle.speed;
                 }
                 if (keys.s) {
-                    newX -= Math.cos(tank.angle) * tank.speed / 2;
-                    newY -= Math.sin(tank.angle) * tank.speed / 2;
+                    newX -= Math.cos(vehicle.angle) * vehicle.speed / 2;
+                    newY -= Math.sin(vehicle.angle) * vehicle.speed / 2;
                 }
-                if (keys.a) tank.steeringAngle = Math.max(-tank.maxSteeringAngle, tank.steeringAngle - 0.05);
-                if (keys.d) tank.steeringAngle = Math.min(tank.maxSteeringAngle, tank.steeringAngle + 0.05);
+                if (keys.a) vehicle.steeringAngle = Math.max(-vehicle.maxSteeringAngle, vehicle.steeringAngle - 0.05);
+                if (keys.d) vehicle.steeringAngle = Math.min(vehicle.maxSteeringAngle, vehicle.steeringAngle + 0.05);
             } else {
-                // AI movement
-                newX += Math.cos(tank.angle) * tank.speed;
-                newY += Math.sin(tank.angle) * tank.speed;
+                newX += Math.cos(vehicle.angle) * vehicle.speed;
+                newY += Math.sin(vehicle.angle) * vehicle.speed;
 
                 if (Math.random() < 0.02) {
-                    tank.steeringAngle = (Math.random() - 0.5) * tank.maxSteeringAngle * 2;
+                    vehicle.steeringAngle = (Math.random() - 0.5) * vehicle.maxSteeringAngle * 2;
                 }
             }
 
-            tank.angle += tank.steeringAngle * tank.speed / 30;
+            vehicle.angle += vehicle.steeringAngle * vehicle.speed / 30;
 
-            // Check collision with buildings
             let collision = false;
             map.buildings.forEach(building => {
-                if (checkCollision({x: newX, y: newY, width: tank.width, height: tank.height}, building)) {
+                if (checkCollision({x: newX, y: newY, width: vehicle.width, height: vehicle.height}, building)) {
                     collision = true;
                 }
             });
 
             if (!collision) {
-                tank.x = newX;
-                tank.y = newY;
+                vehicle.x = newX;
+                vehicle.y = newY;
             }
 
-            // Keep tank in bounds
-            tank.x = Math.max(0, Math.min(map.width, tank.x));
-            tank.y = Math.max(0, Math.min(map.height, tank.y));
+            vehicle.x = Math.max(0, Math.min(map.width, vehicle.x));
+            vehicle.y = Math.max(0, Math.min(map.height, vehicle.y));
 
-            // Gradually return steering to center
-            tank.steeringAngle *= 0.9;
+            vehicle.steeringAngle *= 0.9;
         }
 
         function update() {
-            updateTank(player, true);
-            aiPlayers.forEach(ai => updateTank(ai, false));
+            updateVehicle(player);
+            aiVehicles.forEach(ai => updateVehicle(ai));
 
-            // Update camera
             camera.x = player.x - canvas.width / 2;
             camera.y = player.y - canvas.height / 2;
 
-            // Keep camera in bounds
             camera.x = Math.max(0, Math.min(map.width - canvas.width, camera.x));
             camera.y = Math.max(0, Math.min(map.height - canvas.height, camera.y));
 
@@ -214,8 +202,8 @@
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawMap();
-            drawTank(player, '#006400');
-            aiPlayers.forEach(ai => drawTank(ai, '#8B0000'));
+            drawVehicle(player);
+            aiVehicles.forEach(ai => drawVehicle(ai));
             drawBullets();
         }
 
