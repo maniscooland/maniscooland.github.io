@@ -35,7 +35,10 @@
             angle: 0,
             inVehicle: null,
             keys: [],
-            gun: null
+            gun: null,
+            ammo: 0,
+            magazineSize: 10,
+            magazineAmmo: 0
         };
 
         const vehicles = [];
@@ -47,7 +50,11 @@
             { type: 'truck', width: 70, height: 40, speed: 3, color: '#41f468' },
         ];
 
-        const guns = ['pistol', 'shotgun', 'rifle'];
+        const guns = [
+            { name: 'pistol', color: '#8B4513' },
+            { name: 'shotgun', color: '#A0522D' },
+            { name: 'rifle', color: '#D2691E' }
+        ];
 
         // Generate buildings
         for (let i = 0; i < 40; i++) {
@@ -119,8 +126,20 @@
             ctx.fillRect(-vehicle.width / 2, -vehicle.height / 2, vehicle.width, vehicle.height);
 
             ctx.fillStyle = '#000000';
-            ctx.fillRect(-vehicle.width / 2 + 5, -vehicle.height / 2 - 5, 10, 10);
-            ctx.fillRect(vehicle.width / 2 - 15, -vehicle.height / 2 - 5, 10, 10);
+            // Front wheels (turning)
+            ctx.save();
+            ctx.translate(-vehicle.width / 2 + 10, -vehicle.height / 2);
+            ctx.rotate(vehicle.steeringAngle);
+            ctx.fillRect(-5, -5, 10, 10);
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(vehicle.width / 2 - 10, -vehicle.height / 2);
+            ctx.rotate(vehicle.steeringAngle);
+            ctx.fillRect(-5, -5, 10, 10);
+            ctx.restore();
+
+            // Back wheels (fixed)
             ctx.fillRect(-vehicle.width / 2 + 5, vehicle.height / 2 - 5, 10, 10);
             ctx.fillRect(vehicle.width / 2 - 15, vehicle.height / 2 - 5, 10, 10);
 
@@ -131,12 +150,25 @@
             ctx.save();
             ctx.translate(player.x - camera.x, player.y - camera.y);
             ctx.rotate(player.angle);
+
+            // Player body
             ctx.fillStyle = '#FF00FF';
             ctx.beginPath();
             ctx.arc(0, 0, 10, 0, Math.PI * 2);
             ctx.fill();
+
+            // Hands
+            ctx.fillStyle = '#FFA500';
             ctx.fillRect(-5, -15, 3, 10);
             ctx.fillRect(2, -15, 3, 10);
+
+            // Gun
+            if (player.gun) {
+                ctx.fillStyle = player.gun.color;
+                ctx.fillRect(0, -20, 5, 20);  // Gun base
+                ctx.fillRect(5, -20, 15, 5);  // Gun nozzle
+            }
+
             ctx.restore();
         }
 
@@ -153,7 +185,8 @@
             ctx.fillStyle = '#000000';
             ctx.font = '20px Arial';
             ctx.fillText(`Keys: ${player.keys.join(', ')}`, 10, 30);
-            ctx.fillText(`Gun: ${player.gun || 'None'}`, 10, 60);
+            ctx.fillText(`Gun: ${player.gun ? player.gun.name : 'None'}`, 10, 60);
+            ctx.fillText(`Ammo: ${player.magazineAmmo}/${player.ammo}`, 10, 90);
         }
 
         function updateBullets() {
@@ -168,12 +201,22 @@
         }
 
         function shoot() {
-            if (player.gun) {
+            if (player.gun && player.magazineAmmo > 0) {
                 bullets.push({
                     x: player.x + Math.cos(player.angle) * 30,
                     y: player.y + Math.sin(player.angle) * 30,
                     angle: player.angle
                 });
+                player.magazineAmmo--;
+            }
+        }
+
+        function reload() {
+            if (player.gun && player.ammo > 0) {
+                const ammoNeeded = player.magazineSize - player.magazineAmmo;
+                const ammoToReload = Math.min(ammoNeeded, player.ammo);
+                player.magazineAmmo += ammoToReload;
+                player.ammo -= ammoToReload;
             }
         }
 
@@ -216,6 +259,8 @@
                 if (checkCollision(player, building)) {
                     if (player.keys.includes(building.number)) {
                         player.gun = building.gun;
+                        player.ammo = 400;
+                        player.magazineAmmo = player.magazineSize;
                         player.keys = player.keys.filter(key => key !== building.number);
                     } else {
                         // Push player out of building
@@ -252,6 +297,12 @@
                     });
                 }
                 keys.e = false;
+            }
+
+            // Reload
+            if (keys.r) {
+                reload();
+                keys.r = false;
             }
 
             player.x = Math.max(0, Math.min(map.width, player.x));
