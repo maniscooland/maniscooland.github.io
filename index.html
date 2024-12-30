@@ -33,7 +33,8 @@
                 speed: 2,
                 moveTimer: 0,
                 moveInterval: Math.random() * 100 + 50,
-                inVehicle: null
+                inVehicle: null,
+                vehicleDirection: 1
             });
         }
 
@@ -80,6 +81,7 @@
 
                 player.x = vehicle.x + vehicle.width / 2;
                 player.y = vehicle.y + vehicle.height / 2;
+                player.angle = vehicle.angle; // Lock player rotation to vehicle
             } else {
                 // Player movement on foot
                 if (keys.w) player.y -= player.speed;
@@ -92,7 +94,7 @@
                 player.y = Math.max(0, Math.min(canvas.height, player.y));
             }
 
-            // Player rotation (always face cursor)
+            // Player rotation (always face cursor, even in vehicle)
             player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
 
             // AI movement and vehicle interaction
@@ -100,17 +102,24 @@
                 if (ai.inVehicle) {
                     // AI is driving
                     const vehicle = ai.inVehicle;
-                    vehicle.x += Math.cos(vehicle.angle) * vehicle.speed;
-                    vehicle.y += Math.sin(vehicle.angle) * vehicle.speed;
+                    vehicle.x += Math.cos(vehicle.angle) * vehicle.speed * ai.vehicleDirection;
+                    vehicle.y += Math.sin(vehicle.angle) * vehicle.speed * ai.vehicleDirection;
 
-                    // Randomly change direction
+                    // Randomly change direction or go backwards
                     if (Math.random() < 0.02) {
                         vehicle.angle += (Math.random() - 0.5) * Math.PI / 4;
+                    }
+                    if (Math.random() < 0.01) {
+                        ai.vehicleDirection *= -1; // Switch between forward and backward
                     }
 
                     // Keep vehicle in bounds
                     vehicle.x = Math.max(0, Math.min(canvas.width - vehicle.width, vehicle.x));
                     vehicle.y = Math.max(0, Math.min(canvas.height - vehicle.height, vehicle.y));
+
+                    ai.x = vehicle.x + vehicle.width / 2;
+                    ai.y = vehicle.y + vehicle.height / 2;
+                    ai.angle = vehicle.angle; // Lock AI rotation to vehicle
 
                     // Randomly exit vehicle
                     if (Math.random() < 0.005) {
@@ -118,6 +127,7 @@
                         ai.inVehicle = null;
                         ai.x = vehicle.x + vehicle.width / 2;
                         ai.y = vehicle.y + vehicle.height / 2;
+                        ai.vehicleDirection = 1; // Reset direction when exiting
                     }
                 } else {
                     // AI is on foot
@@ -140,6 +150,7 @@
                         if (!vehicle.driver && Math.hypot(vehicle.x + vehicle.width/2 - ai.x, vehicle.y + vehicle.height/2 - ai.y) < 30) {
                             vehicle.driver = ai;
                             ai.inVehicle = vehicle;
+                            ai.vehicleDirection = 1; // Start moving forward when entering
                         }
                     });
                 }
