@@ -280,7 +280,7 @@
         const player = new Character(WORLD_WIDTH/2, WORLD_HEIGHT/2, 'player');
         player.isAI = false;
 
-        const vehicles = Array(10000).fill().map(() => new Vehicle(
+        const vehicles = Array(1000).fill().map(() => new Vehicle(
     Math.random() * (WORLD_WIDTH - 400) + 200,
     Math.random() * (WORLD_HEIGHT - 400) + 200
 ));
