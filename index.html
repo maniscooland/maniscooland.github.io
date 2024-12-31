@@ -13,6 +13,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            font-family: Arial, sans-serif;
         }
         #gameCanvas {
             border: 2px solid #666;
@@ -27,7 +28,20 @@
             padding: 20px;
             color: white;
             text-align: center;
-            display: none;
+            border-radius: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 5px;
+        }
+        select {
+            padding: 5px;
+            margin: 10px;
         }
         .hud {
             position: absolute;
@@ -36,6 +50,9 @@
             color: white;
             font-family: Arial;
             text-shadow: 2px 2px black;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -94,8 +111,8 @@ function init() {
     // Generate buildings
     for(let i = 0; i < 20; i++) {
         buildings.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
+            x: Math.random() * (canvas.width - 150),
+            y: Math.random() * (canvas.height - 150),
             width: Math.random() * 100 + 50,
             height: Math.random() * 100 + 50
         });
@@ -104,8 +121,8 @@ function init() {
     // Generate vehicles
     for(let i = 0; i < 5; i++) {
         vehicles.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
+            x: Math.random() * (canvas.width - 60),
+            y: Math.random() * (canvas.height - 80),
             width: 40,
             height: 60,
             speed: 0,
@@ -116,8 +133,8 @@ function init() {
     // Generate AI players
     for(let i = 0; i < AI_COUNT; i++) {
         aiPlayers.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
+            x: Math.random() * (canvas.width - 30),
+            y: Math.random() * (canvas.height - 30),
             width: 30,
             height: 30,
             health: 100,
@@ -157,6 +174,10 @@ function updatePlayer() {
     if(keys['a']) player.x -= player.speed;
     if(keys['d']) player.x += player.speed;
     
+    // Keep player in bounds
+    player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+    player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+    
     // Collision detection with buildings
     buildings.forEach(building => {
         if(checkCollision(player, building)) {
@@ -165,12 +186,75 @@ function updatePlayer() {
     });
 }
 
+function updateAI() {
+    aiPlayers.forEach(ai => {
+        // Random wandering behavior
+        ai.direction += (Math.random() - 0.5) * 0.2;
+        ai.x += Math.cos(ai.direction) * ai.speed;
+        ai.y += Math.sin(ai.direction) * ai.speed;
+        
+        // Keep AI in bounds
+        ai.x = Math.max(0, Math.min(canvas.width - ai.width, ai.x));
+        ai.y = Math.max(0, Math.min(canvas.height - ai.height, ai.y));
+        
+        // AI collision with buildings
+        buildings.forEach(building => {
+            if(checkCollision(ai, building)) {
+                resolveCollision(ai, building);
+                ai.direction += Math.PI; // Turn around when hitting a building
+            }
+        });
+    });
+}
+
+function updateBullets() {
+    for(let i = bullets.length - 1; i >= 0; i--) {
+        const bullet = bullets[i];
+        bullet.x += Math.cos(bullet.angle) * bullet.speed;
+        bullet.y += Math.sin(bullet.angle) * bullet.speed;
+        
+        // Remove bullets that are off screen
+        if(bullet.x < 0 || bullet.x > canvas.width || 
+           bullet.y < 0 || bullet.y > canvas.height) {
+            bullets.splice(i, 1);
+            continue;
+        }
+        
+        // Check bullet collisions with AI players
+        aiPlayers.forEach((ai, index) => {
+            if(checkBulletCollision(bullet, ai)) {
+                ai.health -= bullet.damage;
+                bullets.splice(i, 1);
+                if(ai.health <= 0) {
+                    aiPlayers.splice(index, 1);
+                }
+                return;
+            }
+        });
+        
+        // Check bullet collisions with buildings
+        buildings.forEach(building => {
+            if(checkBulletCollision(bullet, building)) {
+                bullets.splice(i, 1);
+                return;
+            }
+        });
+    }
+}
+
 // Basic collision detection
 function checkCollision(rect1, rect2) {
     return rect1.x < rect2.x + rect2.width &&
            rect1.x + rect1.width > rect2.x &&
            rect1.y < rect2.y + rect2.height &&
            rect1.y + rect1.height > rect2.y;
+}
+
+function checkBulletCollision(bullet, target) {
+    return bullet.x >= target.x && 
+           bullet.x <= target.x + target.width &&
+           bullet.y >= target.y && 
+           bullet.y <= target.y + target.height;
 }
 
 // Resolve collision by pushing objects apart
@@ -232,27 +316,6 @@ function drawBullets() {
     });
 }
 
-// Event listeners
-window.addEventListener('keydown', e => keys[e.key] = true);
-window.addEventListener('keyup', e => keys[e.key] = false);
-window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth - 40;
-    canvas.height = window.innerHeight - 40;
-});
-
-canvas.addEventListener('click', e => {
-    if(!gameRunning) return;
-    
-    const angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
-    bullets.push({
-        x: player.x + player.width/2,
-        y: player.y + player.height/2,
-        speed: BULLET_SPEED,
-        angle: angle,
-        damage: getWeaponDamage(player.weapon)
-    });
-});
-
 function getWeaponDamage(weapon) {
     const damages = {
         pistol: 10,
@@ -276,6 +339,31 @@ function startGame() {
     init();
     gameLoop();
 }
+
+// Event listeners
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth - 40;
+    canvas.height = window.innerHeight - 40;
+});
+
+canvas.addEventListener('click', e => {
+    if(!gameRunning) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const angle = Math.atan2(y - (player.y + player.height/2), x - (player.x + player.width/2));
+    
+    bullets.push({
+        x: player.x + player.width/2,
+        y: player.y + player.height/2,
+        speed: BULLET_SPEED,
+        angle: angle,
+        damage: getWeaponDamage(player.weapon)
+    });
+});
 
 // Show menu on load
 document.getElementById('menu').style.display = 'block';
