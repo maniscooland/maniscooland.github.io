@@ -142,11 +142,21 @@
             }
         }
 
-        for (let e=0;e<4;e++) {
-            const n=vehicleTypes[Math.floor(Math.random()*vehicleTypes.length)];
+        for (let e = 0; e < 4; e++) {
+            const n = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
             
-            vehicles.push({...n,x=Math.random()*map.width,y=Math.random()*map.height,angle=2*Math.random()*Math.PI,steeringAngle=0,maxSteeringAngle=Math.PI/4,driver=null,passenger=null});
+            vehicles.push({
+                ...n,
+                x: Math.random() * map.width,
+                y: Math.random() * map.height,
+                angle: 2 * Math.random() * Math.PI,
+                steeringAngle: 0,
+                maxSteeringAngle: Math.PI / 4,
+                driver: null,
+                passenger: null
+            });
         }
+
 
        function drawMap(){
            ctx.fillStyle="#7CFC00",ctx.fillRect(0,0,canvas.width,canvas.height),ctx.fillStyle="#8B4513",ctx.fillRect(map.width/2-map.roadWidth/2-camera.x,0,map.roadWidth,canvas.height),ctx.fillRect(0,map.height/2-map.roadWidth/2-camera.y,canvas.width,map.roadWidth),ctx.fillStyle="#808080",map.buildings.forEach(e=>{ctx.fillRect(e.x-camera.x,e.y-camera.y,e.width,e.height),player.inBuilding===e&&(ctx.fillStyle=e.interior.color,ctx.fillRect(e.x-camera.x,e.y-camera.y,e.width,e.height),ctx.fillStyle="#808080")}),ctx.fillStyle="#8B4513",map.doors.forEach(e=>{ctx.save(),ctx.translate(e.x-camera.x,e.y-camera.y),ctx.rotate(e.openAngle),ctx.fillRect(-e.width/2,0,e.width,e.height),ctx.restore()})
