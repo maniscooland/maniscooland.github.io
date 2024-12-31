@@ -19,21 +19,112 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
 
-        // Create dirt road paths
-        const roads = [
-            {x: 100, y: 100, width: 800, height: 60},
-            {x: 300, y: 100, width: 60, height: 500},
-            {x: 300, y: 540, width: 500, height: 60},
-            {x: 800, y: 200, width: 60, height: 400}
-        ];
+        class Player {
+            constructor(x, y, isAI = false) {
+                this.x = x;
+                this.y = y;
+                this.rotation = 0;
+                this.speed = 5;
+                this.isAI = isAI;
+                this.color = isAI ? '#FF4444' : '#4444FF';
+                this.vehicle = null;
+                this.targetX = Math.random() * canvas.width;
+                this.targetY = Math.random() * canvas.height;
+            }
+
+            draw() {
+                if (this.vehicle) return;
+                
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                // Body
+                ctx.beginPath();
+                ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // Hands
+                ctx.fillRect(15, -10, 10, 10);
+                ctx.fillRect(15, 0, 10, 10);
+                
+                ctx.restore();
+            }
+
+            update() {
+                if (this.isAI) {
+                    if (!this.vehicle) {
+                        const dx = this.targetX - this.x;
+                        const dy = this.targetY - this.y;
+                        const dist = Math.hypot(dx, dy);
+                        
+                        if (dist < 10) {
+                            this.targetX = Math.random() * canvas.width;
+                            this.targetY = Math.random() * canvas.height;
+                        }
+
+                        this.rotation = Math.atan2(dy, dx);
+                        this.x += Math.cos(this.rotation) * this.speed;
+                        this.y += Math.sin(this.rotation) * this.speed;
+
+                        vehicles.forEach(v => {
+                            if (!v.driver && Math.hypot(v.x - this.x, v.y - this.y) < 50) {
+                                this.vehicle = v;
+                                v.driver = this;
+                            }
+                        });
+                    } else {
+                        const dx = this.targetX - this.vehicle.x;
+                        const dy = this.targetY - this.vehicle.y;
+                        const targetAngle = Math.atan2(dy, dx);
+                        
+                        let angleDiff = targetAngle - this.vehicle.rotation;
+                        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                        
+                        this.vehicle.wheelAngle = angleDiff * 0.5;
+                        this.vehicle.speed = 3;
+
+                        if (Math.random() < 0.01) {
+                            this.vehicle.driver = null;
+                            this.vehicle = null;
+                        }
+                    }
+                } else {
+                    if (!this.vehicle) {
+                        if (keys.w) this.y -= this.speed;
+                        if (keys.s) this.y += this.speed;
+                        if (keys.a) this.x -= this.speed;
+                        if (keys.d) this.x += this.speed;
+                        
+                        const dx = mouseX - this.x;
+                        const dy = mouseY - this.y;
+                        this.rotation = Math.atan2(dy, dx);
+
+                        if (keys.e) {
+                            vehicles.forEach(v => {
+                                if (!v.driver && Math.hypot(v.x - this.x, v.y - this.y) < 50) {
+                                    this.vehicle = v;
+                                    v.driver = this;
+                                }
+                            });
+                        }
+                    } else {
+                        this.rotation = this.vehicle.rotation;
+                        if (keys.e) {
+                            this.x = this.vehicle.x;
+                            this.y = this.vehicle.y;
+                            this.vehicle.driver = null;
+                            this.vehicle = null;
+                        }
+                    }
+                }
+            }
+        }
 
         class Vehicle {
             constructor(x, y) {
@@ -49,6 +140,7 @@
                 this.maxSpeed = 5;
                 this.acceleration = 0.2;
                 this.friction = 0.98;
+                this.driver = null;
             }
 
             draw() {
@@ -57,15 +149,15 @@
                 ctx.rotate(this.rotation);
 
                 // Car body
-                ctx.fillStyle = '#4444FF';
+                ctx.fillStyle = '#444444';
                 ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
 
-                // Back wheels (fixed)
+                // Back wheels
                 ctx.fillStyle = '#000';
                 ctx.fillRect(-this.width/2, -this.height/2 - 5, 10, 5);
                 ctx.fillRect(-this.width/2, this.height/2, 10, 5);
 
-                // Front wheels (turning)
+                // Front wheels
                 ctx.save();
                 ctx.translate(this.width/2 - 10, -this.height/2 - 5);
                 ctx.rotate(this.wheelAngle);
@@ -78,43 +170,64 @@
                 ctx.fillRect(0, 0, 10, 5);
                 ctx.restore();
 
+                // Draw driver if present
+                if (this.driver) {
+                    ctx.save();
+                    ctx.translate(0, 0);
+                    ctx.rotate(this.rotation * -1);
+                    
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                    ctx.fillStyle = this.driver.color;
+                    ctx.fill();
+                    
+                    ctx.fillRect(15, -10, 10, 10);
+                    ctx.fillRect(15, 0, 10, 10);
+                    
+                    ctx.restore();
+                }
+
                 ctx.restore();
             }
 
             update() {
-                // Steering
-                if (keys.a) this.wheelAngle = Math.max(-this.maxWheelAngle, this.wheelAngle - 0.1);
-                if (keys.d) this.wheelAngle = Math.min(this.maxWheelAngle, this.wheelAngle + 0.1);
-                if (!keys.a && !keys.d) this.wheelAngle *= 0.5;
+                if (this.driver) {
+                    if (!this.driver.isAI) {
+                        if (keys.w) this.speed = Math.min(this.maxSpeed, this.speed + this.acceleration);
+                        if (keys.s) this.speed = Math.max(-this.maxSpeed/2, this.speed - this.acceleration);
+                        if (keys.a) this.wheelAngle = Math.max(-this.maxWheelAngle, this.wheelAngle - 0.1);
+                        if (keys.d) this.wheelAngle = Math.min(this.maxWheelAngle, this.wheelAngle + 0.1);
+                        if (!keys.a && !keys.d) this.wheelAngle *= 0.5;
+                    }
 
-                // Acceleration
-                if (keys.w) this.speed = Math.min(this.maxSpeed, this.speed + this.acceleration);
-                if (keys.s) this.speed = Math.max(-this.maxSpeed/2, this.speed - this.acceleration);
-                
-                // Apply friction
-                this.speed *= this.friction;
+                    this.speed *= this.friction;
 
-                // Update position and rotation based on bicycle model
-                if (Math.abs(this.speed) > 0.1) {
-                    const turnRadius = this.wheelBase / Math.sin(this.wheelAngle);
-                    this.rotation += this.speed / turnRadius;
+                    if (Math.abs(this.speed) > 0.1) {
+                        const turnRadius = this.wheelBase / Math.sin(this.wheelAngle || 0.0001);
+                        this.rotation += this.speed / turnRadius;
+                    }
+
+                    this.x += Math.cos(this.rotation) * this.speed;
+                    this.y += Math.sin(this.rotation) * this.speed;
+
+                    this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
+                    this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
                 }
-
-                this.x += Math.cos(this.rotation) * this.speed;
-                this.y += Math.sin(this.rotation) * this.speed;
-
-                // Keep in bounds
-                this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
-                this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
             }
         }
+
+        const roads = [
+            {x: 100, y: 100, width: 800, height: 60},
+            {x: 300, y: 100, width: 60, height: 500},
+            {x: 300, y: 540, width: 500, height: 60},
+            {x: 800, y: 200, width: 60, height: 400}
+        ];
 
         function drawRoads() {
             roads.forEach(road => {
                 ctx.fillStyle = '#8B4513';
                 ctx.fillRect(road.x, road.y, road.width, road.height);
                 
-                // Add road texture
                 ctx.fillStyle = '#73370D';
                 for(let i = 0; i < road.width; i += 20) {
                     for(let j = 0; j < road.height; j += 20) {
@@ -126,18 +239,43 @@
             });
         }
 
-        const vehicle = new Vehicle(400, 300);
-        const keys = {w: false, s: false, a: false, d: false};
+        const player = new Player(400, 300);
+        const vehicles = Array(6).fill().map(() => new Vehicle(
+            Math.random() * (canvas.width - 200) + 100,
+            Math.random() * (canvas.height - 200) + 100
+        ));
+        const aiPlayers = Array(4).fill().map(() => new Player(
+            Math.random() * canvas.width,
+            Math.random() * canvas.height,
+            true
+        ));
+
+        const keys = {w: false, s: false, a: false, d: false, e: false};
+        let mouseX = 0, mouseY = 0;
 
         window.addEventListener('keydown', e => keys[e.key] = true);
         window.addEventListener('keyup', e => keys[e.key] = false);
+        window.addEventListener('mousemove', e => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
 
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             drawRoads();
-            vehicle.update();
-            vehicle.draw();
+            vehicles.forEach(v => {
+                v.update();
+                v.draw();
+            });
+            
+            aiPlayers.forEach(ai => {
+                ai.update();
+                ai.draw();
+            });
+            
+            player.update();
+            player.draw();
             
             requestAnimationFrame(gameLoop);
         }
