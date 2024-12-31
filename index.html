@@ -361,4 +361,45 @@
             camera.x = player.x - canvas.width / 2;
             camera.y = player.y - canvas.height / 2;
             camera.x = Math.max(0, Math.min(map.width - canvas.width, camera.x));
-            camera.y = Math.max(0, Math.min(map.height - canvas.height, camera.
+            camera.y = Math.max(0, Math.min(map.height - canvas.height, camera.y));
+        updateBullets();
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawMap();
+        vehicles.forEach(drawVehicle);
+        aiPlayers.forEach(ai => drawPlayer(ai, true));
+        drawPlayer(player);
+        drawBullets();
+        drawHUD();
+    }
+
+    function gameLoop() {
+        update();
+        render();
+        requestAnimationFrame(gameLoop);
+    }
+
+    const keys = {};
+
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left + camera.x;
+        const mouseY = e.clientY - rect.top + camera.y;
+        player.angle = Math.atan2(mouseY - player.y, mouseX - player.x) - Math.PI / 2;
+    });
+
+    canvas.addEventListener('click', () => shoot(player));
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+    gameLoop();
+</script>
+
