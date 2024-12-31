@@ -1,17 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Off-Road Driving</title>
+    <title>Battle Royale</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-            background: #90EE90;
-        }
+        * { margin: 0; padding: 0; overflow: hidden; }
+        canvas { display: block; background: #90EE90; }
     </style>
 </head>
 <body>
@@ -22,17 +15,29 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        class Player {
-            constructor(x, y, isAI = false) {
+        class Character {
+            constructor(x, y, team = 'neutral') {
                 this.x = x;
                 this.y = y;
                 this.rotation = 0;
-                this.speed = 5;
-                this.isAI = isAI;
-                this.color = isAI ? '#FF4444' : '#4444FF';
+                this.speed = 4;
+                this.health = 100;
+                this.team = team;
                 this.vehicle = null;
-                this.targetX = Math.random() * canvas.width;
-                this.targetY = Math.random() * canvas.height;
+                this.target = null;
+                this.state = 'wandering';
+                this.color = this.getTeamColor();
+                this.isAI = true;
+            }
+
+            getTeamColor() {
+                return {
+                    'red': '#ff4444',
+                    'blue': '#4444ff',
+                    'green': '#44ff44',
+                    'neutral': '#aaaaaa',
+                    'player': '#ffff44'
+                }[this.team] || '#aaaaaa';
             }
 
             draw() {
@@ -41,6 +46,12 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.rotation);
+
+                // Health bar
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(-20, -30, 40, 5);
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(-20, -30, 40 * (this.health/100), 5);
                 
                 // Body
                 ctx.beginPath();
@@ -48,7 +59,7 @@
                 ctx.fillStyle = this.color;
                 ctx.fill();
                 
-                // Hands
+                // Arms
                 ctx.fillRect(15, -10, 10, 10);
                 ctx.fillRect(15, 0, 10, 10);
                 
@@ -56,56 +67,26 @@
             }
 
             update() {
+                if (this.health <= 0) return;
+
                 if (this.isAI) {
                     if (!this.vehicle) {
-                        const dx = this.targetX - this.x;
-                        const dy = this.targetY - this.y;
-                        const dist = Math.hypot(dx, dy);
-                        
-                        if (dist < 10) {
-                            this.targetX = Math.random() * canvas.width;
-                            this.targetY = Math.random() * canvas.height;
+                        if (!this.target || this.reachedTarget()) {
+                            this.target = {
+                                x: Math.random() * canvas.width,
+                                y: Math.random() * canvas.height
+                            };
                         }
-
+                        
+                        const dx = this.target.x - this.x;
+                        const dy = this.target.y - this.y;
                         this.rotation = Math.atan2(dy, dx);
+                        
                         this.x += Math.cos(this.rotation) * this.speed;
                         this.y += Math.sin(this.rotation) * this.speed;
 
-                        vehicles.forEach(v => {
-                            if (!v.driver && Math.hypot(v.x - this.x, v.y - this.y) < 50) {
-                                this.vehicle = v;
-                                v.driver = this;
-                            }
-                        });
-                    } else {
-                        const dx = this.targetX - this.vehicle.x;
-                        const dy = this.targetY - this.vehicle.y;
-                        const targetAngle = Math.atan2(dy, dx);
-                        
-                        let angleDiff = targetAngle - this.vehicle.rotation;
-                        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                        
-                        this.vehicle.wheelAngle = angleDiff * 0.5;
-                        this.vehicle.speed = 3;
-
+                        // Random vehicle entry
                         if (Math.random() < 0.01) {
-                            this.vehicle.driver = null;
-                            this.vehicle = null;
-                        }
-                    }
-                } else {
-                    if (!this.vehicle) {
-                        if (keys.w) this.y -= this.speed;
-                        if (keys.s) this.y += this.speed;
-                        if (keys.a) this.x -= this.speed;
-                        if (keys.d) this.x += this.speed;
-                        
-                        const dx = mouseX - this.x;
-                        const dy = mouseY - this.y;
-                        this.rotation = Math.atan2(dy, dx);
-
-                        if (keys.e) {
                             vehicles.forEach(v => {
                                 if (!v.driver && Math.hypot(v.x - this.x, v.y - this.y) < 50) {
                                     this.vehicle = v;
@@ -114,15 +95,16 @@
                             });
                         }
                     } else {
-                        this.rotation = this.vehicle.rotation;
-                        if (keys.e) {
-                            this.x = this.vehicle.x;
-                            this.y = this.vehicle.y;
+                        if (Math.random() < 0.005) {
                             this.vehicle.driver = null;
                             this.vehicle = null;
                         }
                     }
                 }
+            }
+
+            reachedTarget() {
+                return Math.hypot(this.target.x - this.x, this.target.y - this.y) < 50;
             }
         }
 
@@ -152,12 +134,13 @@
                 ctx.fillStyle = '#444444';
                 ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
 
-                // Back wheels
+                // Wheels
                 ctx.fillStyle = '#000';
+                // Back wheels (fixed)
                 ctx.fillRect(-this.width/2, -this.height/2 - 5, 10, 5);
                 ctx.fillRect(-this.width/2, this.height/2, 10, 5);
-
-                // Front wheels
+                
+                // Front wheels (turning)
                 ctx.save();
                 ctx.translate(this.width/2 - 10, -this.height/2 - 5);
                 ctx.rotate(this.wheelAngle);
@@ -170,10 +153,9 @@
                 ctx.fillRect(0, 0, 10, 5);
                 ctx.restore();
 
-                // Draw driver if present
+                // Draw driver
                 if (this.driver) {
                     ctx.save();
-                    ctx.translate(0, 0);
                     ctx.rotate(this.rotation * -1);
                     
                     ctx.beginPath();
@@ -198,6 +180,9 @@
                         if (keys.a) this.wheelAngle = Math.max(-this.maxWheelAngle, this.wheelAngle - 0.1);
                         if (keys.d) this.wheelAngle = Math.min(this.maxWheelAngle, this.wheelAngle + 0.1);
                         if (!keys.a && !keys.d) this.wheelAngle *= 0.5;
+                    } else {
+                        this.speed = 3;
+                        this.wheelAngle = Math.sin(Date.now() / 1000) * this.maxWheelAngle;
                     }
 
                     this.speed *= this.friction;
@@ -216,40 +201,24 @@
             }
         }
 
-        const roads = [
-            {x: 100, y: 100, width: 800, height: 60},
-            {x: 300, y: 100, width: 60, height: 500},
-            {x: 300, y: 540, width: 500, height: 60},
-            {x: 800, y: 200, width: 60, height: 400}
-        ];
+        // Create game objects
+        const player = new Character(400, 300, 'player');
+        player.isAI = false;
 
-        function drawRoads() {
-            roads.forEach(road => {
-                ctx.fillStyle = '#8B4513';
-                ctx.fillRect(road.x, road.y, road.width, road.height);
-                
-                ctx.fillStyle = '#73370D';
-                for(let i = 0; i < road.width; i += 20) {
-                    for(let j = 0; j < road.height; j += 20) {
-                        if((i + j) % 40 === 0) {
-                            ctx.fillRect(road.x + i, road.y + j, 10, 10);
-                        }
-                    }
-                }
-            });
-        }
-
-        const player = new Player(400, 300);
         const vehicles = Array(6).fill().map(() => new Vehicle(
             Math.random() * (canvas.width - 200) + 100,
             Math.random() * (canvas.height - 200) + 100
         ));
-        const aiPlayers = Array(4).fill().map(() => new Player(
-            Math.random() * canvas.width,
-            Math.random() * canvas.height,
-            true
-        ));
 
+        const characters = [
+            player,
+            new Character(200, 200, 'red'),
+            new Character(600, 200, 'blue'),
+            new Character(200, 600, 'green'),
+            new Character(600, 600, 'red')
+        ];
+
+        // Controls
         const keys = {w: false, s: false, a: false, d: false, e: false};
         let mouseX = 0, mouseY = 0;
 
@@ -260,22 +229,53 @@
             mouseY = e.clientY;
         });
 
+        // Player controls
+        function updatePlayer() {
+            if (!player.vehicle) {
+                if (keys.w) player.y -= player.speed;
+                if (keys.s) player.y += player.speed;
+                if (keys.a) player.x -= player.speed;
+                if (keys.d) player.x += player.speed;
+                
+                const dx = mouseX - player.x;
+                const dy = mouseY - player.y;
+                player.rotation = Math.atan2(dy, dx);
+
+                if (keys.e) {
+                    vehicles.forEach(v => {
+                        if (!v.driver && Math.hypot(v.x - player.x, v.y - player.y) < 50) {
+                            player.vehicle = v;
+                            v.driver = player;
+                        }
+                    });
+                }
+            } else {
+                player.rotation = player.vehicle.rotation;
+                if (keys.e) {
+                    player.x = player.vehicle.x;
+                    player.y = player.vehicle.y;
+                    player.vehicle.driver = null;
+                    player.vehicle = null;
+                }
+            }
+        }
+
+        // Game loop
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            drawRoads();
+            // Update and draw everything
             vehicles.forEach(v => {
                 v.update();
                 v.draw();
             });
             
-            aiPlayers.forEach(ai => {
-                ai.update();
-                ai.draw();
+            characters.forEach(char => {
+                char.update();
+                char.draw();
             });
             
-            player.update();
-            player.draw();
+            updatePlayer();
             
             requestAnimationFrame(gameLoop);
         }
