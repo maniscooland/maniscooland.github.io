@@ -1,372 +1,335 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Royale Game</title>
+    <title>2D Battle Game</title>
     <style>
+        canvas {
+            border: 1px solid black;
+            background: #eee;
+            cursor: crosshair;
+        }
         body {
             margin: 0;
             overflow: hidden;
-            background: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-        }
-        #gameCanvas {
-            border: 2px solid #666;
-            background: #8fbc8f;
-        }
-        #menu {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            color: white;
-            text-align: center;
-            border-radius: 10px;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 10px;
-            cursor: pointer;
-            background: #4CAF50;
-            border: none;
-            color: white;
-            border-radius: 5px;
-        }
-        select {
-            padding: 5px;
-            margin: 10px;
-        }
-        .hud {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: white;
-            font-family: Arial;
-            text-shadow: 2px 2px black;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 5px;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    <div id="menu">
-        <h2>Battle Royale</h2>
-        <button onclick="startGame()">Start Game</button>
-        <select id="weaponSelect">
-            <option value="pistol">Pistol</option>
-            <option value="shotgun">Shotgun</option>
-            <option value="rifle">Rifle</option>
-            <option value="auto">Auto Shotgun</option>
-        </select>
-    </div>
-    <div class="hud">
-        <div id="health">Health: 100</div>
-        <div id="ammo">Ammo: 30</div>
-        <div id="weapon">Weapon: Pistol</div>
-    </div>
-
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-// Game constants
-const PLAYER_SPEED = 5;
-const BULLET_SPEED = 10;
-const AI_COUNT = 10;
-
-// Game state
-let gameRunning = false;
-let player = {
-    x: 100,
-    y: 100,
-    width: 30,
-    height: 30,
-    health: 100,
-    speed: PLAYER_SPEED,
-    weapon: 'pistol',
-    ammo: 30,
-    color: '#ff0000'
-};
-
-let buildings = [];
-let vehicles = [];
-let bullets = [];
-let aiPlayers = [];
-let keys = {};
-
-// Initialize game
-function init() {
-    canvas.width = window.innerWidth - 40;
-    canvas.height = window.innerHeight - 40;
-    
-    // Generate buildings
-    for(let i = 0; i < 20; i++) {
-        buildings.push({
-            x: Math.random() * (canvas.width - 150),
-            y: Math.random() * (canvas.height - 150),
-            width: Math.random() * 100 + 50,
-            height: Math.random() * 100 + 50
-        });
-    }
-    
-    // Generate vehicles
-    for(let i = 0; i < 5; i++) {
-        vehicles.push({
-            x: Math.random() * (canvas.width - 60),
-            y: Math.random() * (canvas.height - 80),
-            width: 40,
-            height: 60,
-            speed: 0,
-            rotation: 0
-        });
-    }
-    
-    // Generate AI players
-    for(let i = 0; i < AI_COUNT; i++) {
-        aiPlayers.push({
-            x: Math.random() * (canvas.width - 30),
-            y: Math.random() * (canvas.height - 30),
-            width: 30,
-            height: 30,
-            health: 100,
-            speed: PLAYER_SPEED * 0.7,
-            direction: Math.random() * Math.PI * 2,
-            color: '#0000ff'
-        });
-    }
-}
-
-// Main game loop
-function gameLoop() {
-    if(!gameRunning) return;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    updatePlayer();
-    updateAI();
-    updateBullets();
-    
-    drawMap();
-    drawBuildings();
-    drawVehicles();
-    drawPlayer();
-    drawAI();
-    drawBullets();
-    
-    updateHUD();
-    
-    requestAnimationFrame(gameLoop);
-}
-
-// Player movement
-function updatePlayer() {
-    if(keys['w']) player.y -= player.speed;
-    if(keys['s']) player.y += player.speed;
-    if(keys['a']) player.x -= player.speed;
-    if(keys['d']) player.x += player.speed;
-    
-    // Keep player in bounds
-    player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
-    player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
-    
-    // Collision detection with buildings
-    buildings.forEach(building => {
-        if(checkCollision(player, building)) {
-            resolveCollision(player, building);
-        }
-    });
-}
-
-function updateAI() {
-    aiPlayers.forEach(ai => {
-        // Random wandering behavior
-        ai.direction += (Math.random() - 0.5) * 0.2;
-        ai.x += Math.cos(ai.direction) * ai.speed;
-        ai.y += Math.sin(ai.direction) * ai.speed;
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
         
-        // Keep AI in bounds
-        ai.x = Math.max(0, Math.min(canvas.width - ai.width, ai.x));
-        ai.y = Math.max(0, Math.min(canvas.height - ai.height, ai.y));
-        
-        // AI collision with buildings
-        buildings.forEach(building => {
-            if(checkCollision(ai, building)) {
-                resolveCollision(ai, building);
-                ai.direction += Math.PI; // Turn around when hitting a building
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Game constants
+        const BULLET_SPEED = 10;
+        const AI_COUNT = 5;
+        const VEHICLE_COUNT = 3;
+
+        class Bullet {
+            constructor(x, y, angle, shooter) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.shooter = shooter;
+                this.speed = BULLET_SPEED;
+                this.active = true;
             }
-        });
-    });
-}
 
-function updateBullets() {
-    for(let i = bullets.length - 1; i >= 0; i--) {
-        const bullet = bullets[i];
-        bullet.x += Math.cos(bullet.angle) * bullet.speed;
-        bullet.y += Math.sin(bullet.angle) * bullet.speed;
-        
-        // Remove bullets that are off screen
-        if(bullet.x < 0 || bullet.x > canvas.width || 
-           bullet.y < 0 || bullet.y > canvas.height) {
-            bullets.splice(i, 1);
-            continue;
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fill();
+            }
         }
-        
-        // Check bullet collisions with AI players
-        aiPlayers.forEach((ai, index) => {
-            if(checkBulletCollision(bullet, ai)) {
-                ai.health -= bullet.damage;
-                bullets.splice(i, 1);
-                if(ai.health <= 0) {
-                    aiPlayers.splice(index, 1);
+
+        class Player {
+            constructor(x, y, isAI = false) {
+                this.x = x;
+                this.y = y;
+                this.speed = 5;
+                this.angle = 0;
+                this.health = 100;
+                this.isAI = isAI;
+                this.inVehicle = null;
+                this.shootCooldown = 0;
+                this.target = null;
+            }
+
+            draw() {
+                if (this.health <= 0 || this.inVehicle) return;
+                
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                // Health bar
+                ctx.fillStyle = '#27ae60';
+                ctx.fillRect(-25, -40, (this.health/100) * 50, 5);
+                
+                // Body
+                ctx.beginPath();
+                ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                ctx.fillStyle = this.isAI ? '#e74c3c' : '#3498db';
+                ctx.fill();
+                
+                // Hands
+                ctx.beginPath();
+                ctx.arc(-25, -25, 8, 0, Math.PI * 2);
+                ctx.arc(25, -25, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fill();
+                
+                ctx.restore();
+            }
+
+            shoot() {
+                if (this.shootCooldown <= 0 && !this.inVehicle) {
+                    bullets.push(new Bullet(this.x, this.y, this.angle, this));
+                    this.shootCooldown = 20;
                 }
-                return;
             }
+
+            update() {
+                if (this.health <= 0) return;
+                
+                if (this.shootCooldown > 0) this.shootCooldown--;
+
+                if (this.isAI) {
+                    this.updateAI();
+                } else if (!this.inVehicle) {
+                    // Player movement
+                    if (keys['w']) this.y -= this.speed;
+                    if (keys['s']) this.y += this.speed;
+                    if (keys['a']) this.x -= this.speed;
+                    if (keys['d']) this.x += this.speed;
+                    
+                    this.angle = Math.atan2(mouseY - this.y, mouseX - this.x);
+                }
+            }
+
+            updateAI() {
+                if (!this.target || this.target.health <= 0) {
+                    this.findNewTarget();
+                }
+
+                if (this.target) {
+                    const dx = this.target.x - this.x;
+                    const dy = this.target.y - this.y;
+                    this.angle = Math.atan2(dy, dx);
+                    
+                    // Move towards target
+                    this.x += Math.cos(this.angle) * this.speed * 0.5;
+                    this.y += Math.sin(this.angle) * this.speed * 0.5;
+
+                    // Shoot at target
+                    if (Math.random() < 0.05) this.shoot();
+                }
+            }
+
+            findNewTarget() {
+                const possibleTargets = [...players, mainPlayer].filter(p => 
+                    p !== this && p.health > 0 && !p.isAI
+                );
+                if (possibleTargets.length > 0) {
+                    this.target = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+                }
+            }
+        }
+
+        class Vehicle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 120;
+                this.height = 80;
+                this.angle = 0;
+                this.speed = 0;
+                this.driver = null;
+                this.health = 200;
+            }
+
+            draw() {
+                if (this.health <= 0) return;
+                
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                // Health bar
+                ctx.fillStyle = '#27ae60';
+                ctx.fillRect(-this.width/2, -this.height/2 - 20, (this.health/200) * this.width, 5);
+                
+                // Car body
+                ctx.fillStyle = '#95a5a6';
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                // Wheels
+                ctx.fillStyle = '#2c3e50';
+                ctx.fillRect(-this.width/2, -this.height/2, 20, 20);
+                ctx.fillRect(this.width/2 - 20, -this.height/2, 20, 20);
+                ctx.fillRect(-this.width/2, this.height/2 - 20, 20, 20);
+                ctx.fillRect(this.width/2 - 20, this.height/2 - 20, 20, 20);
+                
+                // Seats
+                ctx.fillStyle = '#34495e';
+                ctx.fillRect(-20, -10, 40, 20);
+                
+                ctx.restore();
+            }
+
+            update() {
+                if (this.health <= 0) return;
+                
+                if (this.driver) {
+                    if (keys['w']) this.speed = 5;
+                    else if (keys['s']) this.speed = -3;
+                    else this.speed *= 0.95;
+
+                    if (keys['a']) this.angle -= 0.05;
+                    if (keys['d']) this.angle += 0.05;
+
+                    this.driver.x = this.x;
+                    this.driver.y = this.y;
+                }
+
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+            }
+        }
+
+        // Game variables
+        const mainPlayer = new Player(canvas.width/2, canvas.height/2);
+        const players = [];
+        const vehicles = [];
+        const bullets = [];
+        let mouseX = 0;
+        let mouseY = 0;
+        const keys = {};
+
+        // Create AI players
+        for (let i = 0; i < AI_COUNT; i++) {
+            players.push(new Player(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height,
+                true
+            ));
+        }
+
+        // Create vehicles
+        for (let i = 0; i < VEHICLE_COUNT; i++) {
+            vehicles.push(new Vehicle(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height
+            ));
+        }
+
+        // Event listeners
+        window.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key === 'e') {
+                // Vehicle entry/exit
+                if (!mainPlayer.inVehicle) {
+                    const nearbyVehicle = vehicles.find(v => 
+                        Math.hypot(v.x - mainPlayer.x, v.y - mainPlayer.y) < 100 &&
+                        !v.driver && v.health > 0
+                    );
+                    if (nearbyVehicle) {
+                        nearbyVehicle.driver = mainPlayer;
+                        mainPlayer.inVehicle = nearbyVehicle;
+                    }
+                } else {
+                    mainPlayer.inVehicle.driver = null;
+                    mainPlayer.x = mainPlayer.inVehicle.x + 50;
+                    mainPlayer.y = mainPlayer.inVehicle.y;
+                    mainPlayer.inVehicle = null;
+                }
+            }
+        });
+
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+        window.addEventListener('mousemove', e => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
         });
         
-        // Check bullet collisions with buildings
-        buildings.forEach(building => {
-            if(checkBulletCollision(bullet, building)) {
-                bullets.splice(i, 1);
-                return;
-            }
+        canvas.addEventListener('mousedown', () => {
+            mainPlayer.shoot();
         });
-    }
-}
 
-// Basic collision detection
-function checkCollision(rect1, rect2) {
-    return rect1.x < rect2.x + rect2.width &&
-           rect1.x + rect1.width > rect2.x &&
-           rect1.y < rect2.y + rect2.height &&
-           rect1.y + rect1.height > rect2.y;
-}
+        function checkCollisions() {
+            // Bullet collisions
+            bullets.forEach(bullet => {
+                // Check player hits
+                [...players, mainPlayer].forEach(player => {
+                    if (player !== bullet.shooter && player.health > 0 && !player.inVehicle) {
+                        if (Math.hypot(bullet.x - player.x, bullet.y - player.y) < 20) {
+                            player.health -= 10;
+                            bullet.active = false;
+                        }
+                    }
+                });
 
-function checkBulletCollision(bullet, target) {
-    return bullet.x >= target.x && 
-           bullet.x <= target.x + target.width &&
-           bullet.y >= target.y && 
-           bullet.y <= target.y + target.height;
-}
+                // Check vehicle hits
+                vehicles.forEach(vehicle => {
+                    if (vehicle.health > 0 &&
+                        bullet.x > vehicle.x - vehicle.width/2 &&
+                        bullet.x < vehicle.x + vehicle.width/2 &&
+                        bullet.y > vehicle.y - vehicle.height/2 &&
+                        bullet.y < vehicle.y + vehicle.height/2) {
+                        vehicle.health -= 5;
+                        bullet.active = false;
+                    }
+                });
+            });
+        }
 
-// Resolve collision by pushing objects apart
-function resolveCollision(rect1, rect2) {
-    const overlapX = (rect1.width + rect2.width) / 2 - Math.abs(rect1.x - rect2.x);
-    const overlapY = (rect1.height + rect2.height) / 2 - Math.abs(rect1.y - rect2.y);
-    
-    if(overlapX < overlapY) {
-        if(rect1.x < rect2.x) rect1.x -= overlapX;
-        else rect1.x += overlapX;
-    } else {
-        if(rect1.y < rect2.y) rect1.y -= overlapY;
-        else rect1.y += overlapY;
-    }
-}
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Update and draw vehicles
+            vehicles.forEach(v => {
+                v.update();
+                v.draw();
+            });
 
-// Draw functions
-function drawMap() {
-    ctx.fillStyle = '#8fbc8f';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
+            // Update and draw players
+            mainPlayer.update();
+            mainPlayer.draw();
+            players.forEach(p => {
+                p.update();
+                p.draw();
+            });
 
-function drawBuildings() {
-    ctx.fillStyle = '#808080';
-    buildings.forEach(building => {
-        ctx.fillRect(building.x, building.y, building.width, building.height);
-    });
-}
+            // Update and draw bullets
+            bullets.forEach(b => {
+                b.update();
+                b.draw();
+            });
 
-function drawVehicles() {
-    ctx.fillStyle = '#404040';
-    vehicles.forEach(vehicle => {
-        ctx.save();
-        ctx.translate(vehicle.x + vehicle.width/2, vehicle.y + vehicle.height/2);
-        ctx.rotate(vehicle.rotation);
-        ctx.fillRect(-vehicle.width/2, -vehicle.height/2, vehicle.width, vehicle.height);
-        ctx.restore();
-    });
-}
+            // Clean up inactive bullets
+            bullets.forEach((bullet, index) => {
+                if (!bullet.active || 
+                    bullet.x < 0 || bullet.x > canvas.width ||
+                    bullet.y < 0 || bullet.y > canvas.height) {
+                    bullets.splice(index, 1);
+                }
+            });
 
-function drawPlayer() {
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-}
+            checkCollisions();
+            
+            requestAnimationFrame(gameLoop);
+        }
 
-function drawAI() {
-    aiPlayers.forEach(ai => {
-        ctx.fillStyle = ai.color;
-        ctx.fillRect(ai.x, ai.y, ai.width, ai.height);
-    });
-}
-
-function drawBullets() {
-    ctx.fillStyle = '#ffff00';
-    bullets.forEach(bullet => {
-        ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
-        ctx.fill();
-    });
-}
-
-function getWeaponDamage(weapon) {
-    const damages = {
-        pistol: 10,
-        shotgun: 25,
-        rifle: 15,
-        auto: 20
-    };
-    return damages[weapon] || 10;
-}
-
-function updateHUD() {
-    document.getElementById('health').textContent = `Health: ${player.health}`;
-    document.getElementById('ammo').textContent = `Ammo: ${player.ammo}`;
-    document.getElementById('weapon').textContent = `Weapon: ${player.weapon}`;
-}
-
-function startGame() {
-    player.weapon = document.getElementById('weaponSelect').value;
-    document.getElementById('menu').style.display = 'none';
-    gameRunning = true;
-    init();
-    gameLoop();
-}
-
-// Event listeners
-window.addEventListener('keydown', e => keys[e.key] = true);
-window.addEventListener('keyup', e => keys[e.key] = false);
-window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth - 40;
-    canvas.height = window.innerHeight - 40;
-});
-
-canvas.addEventListener('click', e => {
-    if(!gameRunning) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const angle = Math.atan2(y - (player.y + player.height/2), x - (player.x + player.width/2));
-    
-    bullets.push({
-        x: player.x + player.width/2,
-        y: player.y + player.height/2,
-        speed: BULLET_SPEED,
-        angle: angle,
-        damage: getWeaponDamage(player.weapon)
-    });
-});
-
-// Show menu on load
-document.getElementById('menu').style.display = 'block';
-</script>
+        gameLoop();
+    </script>
 </body>
 </html>
