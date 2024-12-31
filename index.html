@@ -10,6 +10,18 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     <script>
+        const glove1 = new Image();
+        const glove2 = new Image();
+        glove1.src = 'ga1.png';
+        glove2.src = 'ga2.png';
+        
+        // Wait for images to load
+        Promise.all([
+            new Promise(resolve => glove1.onload = resolve),
+            new Promise(resolve => glove2.onload = resolve)
+        ]).then(() => {
+            gameLoop(); // Start game after images are loaded
+        });
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth;
