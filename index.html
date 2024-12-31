@@ -38,57 +38,49 @@
             }
 
             draw() {
-    ctx.save();
-    ctx.translate(this.x + this.width/2, this.y + this.height/2);
-    ctx.rotate(this.rotation);
-    ctx.translate(-this.width/2, -this.height/2);
-    
-    // Car body
-    ctx.fillStyle = '#666';
-    ctx.fillRect(0, 0, this.width, this.height);
-    
-    // Wheels
-    ctx.fillStyle = '#333';
-    ctx.fillRect(-5, -5, 20, 20);
-    ctx.fillRect(this.width - 15, -5, 20, 20);
-    ctx.fillRect(-5, this.height - 15, 20, 20);
-    ctx.fillRect(this.width - 15, this.height - 15, 20, 20);
-    
-    // Side-by-side Seats
-    ctx.fillStyle = '#444';
-    ctx.fillRect(45, 10, 25, 25);  // Left seat
-    ctx.fillRect(45, 45, 25, 25);  // Right seat
-    
-    // Driver
-    if (this.driver) {
-        ctx.save();
-        ctx.translate(57, 22);  // Centered in left seat
-        ctx.rotate(this.rotation * -1 + Math.PI/2);
-        
-        // Body
-        ctx.beginPath();
-        ctx.arc(0, 0, 12, 0, Math.PI * 2);
-        ctx.fillStyle = this.driver.color;
-        ctx.fill();
-        
-        // Hands
-        ctx.fillRect(15, -10, 8, 8);
-        ctx.fillRect(15, 2, 8, 8);
-        
-        ctx.restore();
-    }
-    
-    ctx.restore();
-}
-
-
-
+                ctx.save();
+                ctx.translate(this.x + this.width/2, this.y + this.height/2);
+                ctx.rotate(this.rotation);
+                ctx.translate(-this.width/2, -this.height/2);
+                
+                // Car body
+                ctx.fillStyle = '#666';
+                ctx.fillRect(0, 0, this.width, this.height);
+                
+                // Wheels
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-5, -5, 20, 20);
+                ctx.fillRect(this.width - 15, -5, 20, 20);
+                ctx.fillRect(-5, this.height - 15, 20, 20);
+                ctx.fillRect(this.width - 15, this.height - 15, 20, 20);
+                
+                // Side-by-side Seats
+                ctx.fillStyle = '#444';
+                ctx.fillRect(45, 10, 25, 25);  // Left seat
+                ctx.fillRect(45, 45, 25, 25);  // Right seat
+                
+                // Driver
+                if (this.driver) {
+                    ctx.save();
+                    ctx.translate(57, 22);
+                    ctx.rotate(this.rotation * -1 + Math.PI/2);
+                    
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                    ctx.fillStyle = this.driver.color;
+                    ctx.fill();
+                    
+                    ctx.fillRect(15, -10, 8, 8);
+                    ctx.fillRect(15, 2, 8, 8);
+                    
+                    ctx.restore();
+                }
+                
+                ctx.restore();
+            }
 
             update() {
                 if (this.driver) {
-                    this.x += Math.cos(this.rotation) * this.speed;
-                    this.y += Math.sin(this.rotation) * this.speed;
-                    
                     // Keep vehicle in bounds
                     this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
                     this.y = Math.max(0, Math.min(canvas.height - this.height, this.y));
@@ -105,7 +97,7 @@
                 this.isAI = isAI;
                 this.color = isAI ? 'red' : 'blue';
                 this.vehicle = null;
-                this.state = 'wandering'; // wandering, seeking_vehicle, driving
+                this.state = 'wandering';
                 this.targetX = x;
                 this.targetY = y;
                 this.stateTimer = 0;
@@ -123,8 +115,8 @@
                 ctx.fillStyle = this.color;
                 ctx.fill();
                 
-                ctx.fillRect(-15, -25, 10, 10);
-                ctx.fillRect(5, -25, 10, 10);
+                ctx.fillRect(15, -10, 10, 10);
+                ctx.fillRect(15, 0, 10, 10);
                 
                 ctx.restore();
             }
@@ -149,7 +141,32 @@
                         
                         const dx = mouseX - this.x;
                         const dy = mouseY - this.y;
-                        this.rotation = Math.atan2(dy, dx);
+                        this.rotation = Math.atan2(dy, dx) + Math.PI/2;
+
+                        if (keys.e) {
+                            vehicles.forEach(v => {
+                                if (!v.driver && Math.hypot(v.x + v.width/2 - this.x, v.y + v.height/2 - this.y) < 50) {
+                                    this.vehicle = v;
+                                    v.driver = this;
+                                }
+                            });
+                        }
+                    } else {
+                        if (keys.w) {
+                            this.vehicle.x += Math.cos(this.vehicle.rotation) * this.vehicle.speed;
+                            this.vehicle.y += Math.sin(this.vehicle.rotation) * this.vehicle.speed;
+                        }
+                        if (keys.s) {
+                            this.vehicle.x -= Math.cos(this.vehicle.rotation) * this.vehicle.speed;
+                            this.vehicle.y -= Math.sin(this.vehicle.rotation) * this.vehicle.speed;
+                        }
+                        if (keys.a) this.vehicle.rotation -= 0.05;
+                        if (keys.d) this.vehicle.rotation += 0.05;
+                        
+                        if (keys.e) {
+                            this.vehicle.driver = null;
+                            this.vehicle = null;
+                        }
                     }
                 } else {
                     this.stateTimer++;
@@ -164,9 +181,9 @@
                                 
                                 const dx = this.targetX - this.x;
                                 const dy = this.targetY - this.y;
-                                this.rotation = Math.atan2(dy, dx);
-                                this.x += Math.cos(this.rotation) * this.speed;
-                                this.y += Math.sin(this.rotation) * this.speed;
+                                this.rotation = Math.atan2(dy, dx) + Math.PI/2;
+                                this.x += Math.cos(this.rotation - Math.PI/2) * this.speed;
+                                this.y += Math.sin(this.rotation - Math.PI/2) * this.speed;
 
                                 const nearestVehicle = this.findNearestVehicle(vehicles);
                                 if (nearestVehicle) {
@@ -180,9 +197,9 @@
                         case 'seeking_vehicle':
                             const dx = this.targetX - this.x;
                             const dy = this.targetY - this.y;
-                            this.rotation = Math.atan2(dy, dx);
-                            this.x += Math.cos(this.rotation) * this.speed;
-                            this.y += Math.sin(this.rotation) * this.speed;
+                            this.rotation = Math.atan2(dy, dx) + Math.PI/2;
+                            this.x += Math.cos(this.rotation - Math.PI/2) * this.speed;
+                            this.y += Math.sin(this.rotation - Math.PI/2) * this.speed;
 
                             vehicles.forEach(v => {
                                 if (!v.driver && Math.hypot(v.x - this.x, v.y - this.y) < 50) {
@@ -194,35 +211,33 @@
                             break;
 
                         case 'driving':
-    if (this.vehicle) {
-        if (this.stateTimer > 300) {
-            this.vehicle.driver = null;
-            this.vehicle = null;
-            this.state = 'wandering';
-            this.stateTimer = 0;
-            this.setNewTarget();
-        } else {
-            // Random movement target
-            if (this.stateTimer % 100 === 0) {
-                this.targetX = Math.random() * canvas.width;
-                this.targetY = Math.random() * canvas.height;
-            }
-            
-            // Calculate angle to target
-            const dx = this.targetX - this.vehicle.x;
-            const dy = this.targetY - this.vehicle.y;
-            const targetAngle = Math.atan2(dy, dx);
-            
-            // Smooth rotation towards target
-            let angleDiff = targetAngle - this.vehicle.rotation;
-            if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-            if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-            
-            this.vehicle.rotation += angleDiff * 0.1;
-        }
-    }
-    break;
-
+                            if (this.vehicle) {
+                                if (this.stateTimer > 300) {
+                                    this.vehicle.driver = null;
+                                    this.vehicle = null;
+                                    this.state = 'wandering';
+                                    this.stateTimer = 0;
+                                    this.setNewTarget();
+                                } else {
+                                    if (this.stateTimer % 100 === 0) {
+                                        this.targetX = Math.random() * canvas.width;
+                                        this.targetY = Math.random() * canvas.height;
+                                    }
+                                    
+                                    const dx = this.targetX - this.vehicle.x;
+                                    const dy = this.targetY - this.vehicle.y;
+                                    const targetAngle = Math.atan2(dy, dx);
+                                    
+                                    let angleDiff = targetAngle - this.vehicle.rotation;
+                                    if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                                    if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                                    
+                                    this.vehicle.rotation += angleDiff * 0.1;
+                                    this.vehicle.x += Math.cos(this.vehicle.rotation) * this.vehicle.speed;
+                                    this.vehicle.y += Math.sin(this.vehicle.rotation) * this.vehicle.speed;
+                                }
+                            }
+                            break;
                     }
                 }
             }
@@ -243,7 +258,8 @@
             w: false,
             s: false,
             a: false,
-            d: false
+            d: false,
+            e: false
         };
         let mouseX = 0;
         let mouseY = 0;
