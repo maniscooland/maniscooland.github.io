@@ -10,18 +10,6 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     <script>
-        const glove1 = new Image();
-        const glove2 = new Image();
-        glove1.src = 'ga1.png';
-        glove2.src = 'ga2.png';
-        
-        // Wait for images to load
-        Promise.all([
-            new Promise(resolve => glove1.onload = resolve),
-            new Promise(resolve => glove2.onload = resolve)
-        ]).then(() => {
-            gameLoop(); // Start game after images are loaded
-        });
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth;
@@ -31,6 +19,13 @@
         const glove2 = new Image();
         glove1.src = 'ga1.png';
         glove2.src = 'ga2.png';
+
+        Promise.all([
+            new Promise(resolve => glove1.onload = resolve),
+            new Promise(resolve => glove2.onload = resolve)
+        ]).then(() => {
+            gameLoop();
+        });
 
         const WORLD_WIDTH = 90000;
         const WORLD_HEIGHT = 90000;
@@ -118,8 +113,8 @@
                 ctx.fillStyle = this.color;
                 ctx.fill();
                 
-                ctx.drawImage(glove1, 30, -20, 20, 20);
-                ctx.drawImage(glove2, 30, 0, 20, 20);
+                ctx.drawImage(glove1, 30, -20, 40, 40);
+                ctx.drawImage(glove2, 30, 0, 40, 40);
                 
                 ctx.restore();
             }
@@ -218,8 +213,8 @@
                     ctx.fillStyle = this.driver.color;
                     ctx.fill();
                     
-                    ctx.drawImage(glove1, 30, -20, 20, 20);
-                    ctx.drawImage(glove2, 30, 0, 20, 20);
+                    ctx.drawImage(glove1, 30, -20, 40, 40);
+                    ctx.drawImage(glove2, 30, 0, 40, 40);
                     
                     ctx.restore();
                 }
@@ -377,8 +372,6 @@
             
             requestAnimationFrame(gameLoop);
         }
-
-        gameLoop();
     </script>
 </body>
 </html>
