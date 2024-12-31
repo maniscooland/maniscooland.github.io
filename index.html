@@ -59,15 +59,23 @@
     ctx.fillRect(40, 20, 20, 20);
     ctx.fillRect(60, 20, 20, 20);
     
-    // Draw driver if present
+    // Driver
     if (this.driver) {
-        ctx.fillStyle = this.driver.color;
+        ctx.save();
+        ctx.translate(50, 30);
+        ctx.rotate(this.rotation * -1 + Math.PI/2);
+        
+        // Body
         ctx.beginPath();
-        ctx.arc(50, 30, 12, 0, Math.PI * 2);
+        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        ctx.fillStyle = this.driver.color;
         ctx.fill();
-        // Driver's hands
-        ctx.fillRect(65, 25, 8, 8);
-        ctx.fillRect(65, 35, 8, 8);
+        
+        // Hands
+        ctx.fillRect(15, -10, 8, 8);
+        ctx.fillRect(15, 2, 8, 8);
+        
+        ctx.restore();
     }
     
     ctx.restore();
