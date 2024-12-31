@@ -5,318 +5,280 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Battle Royale Game</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; }
-        canvas { display: block; }
-        #menu { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; }
-        .weapon-slot { width: 100px; height: 100px; margin: 5px; cursor: pointer; display: inline-block; }
-        #extraWeapons { display: flex; flex-direction: column; }
-        #skinSelect, #gloveSelect { margin-top: 10px; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #gameCanvas {
+            border: 2px solid #666;
+            background: #8fbc8f;
+        }
+        #menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            color: white;
+            text-align: center;
+            display: none;
+        }
+        .hud {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial;
+            text-shadow: 2px 2px black;
+        }
     </style>
 </head>
 <body>
-    <div id="menu">
-        <h3>Choose Weapon</h3>
-        <div id="weaponSlots"></div>
-        <div id="extraWeapons">
-            <h4>Extra Weapons</h4>
-            <div id="extraWeaponSlots"></div>
-        </div>
-        <select id="skinSelect"></select>
-        <select id="gloveSelect"></select>
-        <input id="username" placeholder="Enter username">
-        <button id="startGame">Start Game</button>
-    </div>
     <canvas id="gameCanvas"></canvas>
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    <div id="menu">
+        <h2>Battle Royale</h2>
+        <button onclick="startGame()">Start Game</button>
+        <select id="weaponSelect">
+            <option value="pistol">Pistol</option>
+            <option value="shotgun">Shotgun</option>
+            <option value="rifle">Rifle</option>
+            <option value="auto">Auto Shotgun</option>
+        </select>
+    </div>
+    <div class="hud">
+        <div id="health">Health: 100</div>
+        <div id="ammo">Ammo: 30</div>
+        <div id="weapon">Weapon: Pistol</div>
+    </div>
 
-        const map = {
-            width: 4000,
-            height: 3000,
-            roadWidth: 200,
-            buildings: [],
-            doors: []
-        };
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-        const player = {
-            x: 400, y: 300, width: 30, height: 30, speed: 3, angle: 0,
-            inVehicle: null, inBuilding: null, gun: null, ammo: 400,
-            magazineSize: 10, magazineAmmo: 10, username: "Player",
-            health: 100, skin: 'default', gloves: 'default',
-            velX: 0, velY: 0
-        };
+// Game constants
+const PLAYER_SPEED = 5;
+const BULLET_SPEED = 10;
+const AI_COUNT = 10;
 
-        const vehicles = [];
-        const bullets = [];
-        const camera = { x: 0, y: 0 };
+// Game state
+let gameRunning = false;
+let player = {
+    x: 100,
+    y: 100,
+    width: 30,
+    height: 30,
+    health: 100,
+    speed: PLAYER_SPEED,
+    weapon: 'pistol',
+    ammo: 30,
+    color: '#ff0000'
+};
 
-        const vehicleTypes = [
-            { type: 'car', width: 80, height: 50, speed: 4, color: '#4286f4', capacity: 2 },
-            { type: 'truck', width: 100, height: 60, speed: 3, color: '#41f468', capacity: 2 }
-        ];
+let buildings = [];
+let vehicles = [];
+let bullets = [];
+let aiPlayers = [];
+let keys = {};
 
-        const guns = [
-            { name:'pistol', color:'#8B4513', length :40 , image:'pistol.png', displayImage:'pistolD.png', bulletCount :1 , damage :2 , slot:'P' },
-            { name:'shotgun', color:'#A0522D', length :50 , image:'shotgun.png', displayImage:'shotgunD.png', bulletCount :4 , damage :5 , slot:'S' },
-            { name:'rifle', color:'#D2691E', length :60 , image:'rifle.png', displayImage:'rifleD.png', bulletCount :1 , damage :3 , slot:'R' },
-            { name:'aShotgun', color:'#8B4513', length :55 , image:'aShotgun.png', displayImage:'aShotgunD.png', bulletCount :4 , damage :6 , slot:'S' }
-        ];
-
-        const skins = ['default', 'red', 'blue', 'green'];
-        
-        const gloves = [
-            { name:'default', images:['ga1.png','ga2.png'] },
-            { name:'type_b', images:['gb1.png','gb2.png'] }
-        ];
-
-        const playerImage = new Image();
-        playerImage.src = 'player.png';
-
-        const gunImages = {};
-        
-        guns.forEach(gun => {
-            gunImages[gun.name] = new Image();
-            gunImages[gun.name].src = gun.image;
+// Initialize game
+function init() {
+    canvas.width = window.innerWidth - 40;
+    canvas.height = window.innerHeight - 40;
+    
+    // Generate buildings
+    for(let i = 0; i < 20; i++) {
+        buildings.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            width: Math.random() * 100 + 50,
+            height: Math.random() * 100 + 50
         });
-
-        const gloveImages = {};
-        
-        gloves.forEach(glove => {
-            gloveImages[glove.name] = glove.images.map(src => {
-                const img = new Image();
-                img.src = src;
-                return img;
-            });
+    }
+    
+    // Generate vehicles
+    for(let i = 0; i < 5; i++) {
+        vehicles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            width: 40,
+            height: 60,
+            speed: 0,
+            rotation: 0
         });
+    }
+    
+    // Generate AI players
+    for(let i = 0; i < AI_COUNT; i++) {
+        aiPlayers.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            width: 30,
+            height: 30,
+            health: 100,
+            speed: PLAYER_SPEED * 0.7,
+            direction: Math.random() * Math.PI * 2,
+            color: '#0000ff'
+        });
+    }
+}
 
-        const aiPlayers = [];
-        
-        for (let e = 0; e < 10; e++) {
-            aiPlayers.push({
-                x: Math.random() * map.width,
-                y: Math.random() * map.height,
-                width: 40,
-                height: 40,
-                speed: 2,
-                angle: Math.random() * Math.PI * 2,
-                inVehicle:null,
-                inBuilding:null,
-                gun:guns[Math.floor(Math.random() * guns.length)],
-                ammo :400,
-                magazineSize :10,
-                magazineAmmo :10,
-                state:"wandering",
-                target:null,
-                targetTimer :0,
-                username:"AI_"+e,
-                health :100,
-                skin :skins[Math.floor(Math.random() * skins.length)],
-                gloves :gloves[Math.floor(Math.random() * gloves.length)].name
-            });
+// Main game loop
+function gameLoop() {
+    if(!gameRunning) return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    updatePlayer();
+    updateAI();
+    updateBullets();
+    
+    drawMap();
+    drawBuildings();
+    drawVehicles();
+    drawPlayer();
+    drawAI();
+    drawBullets();
+    
+    updateHUD();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+// Player movement
+function updatePlayer() {
+    if(keys['w']) player.y -= player.speed;
+    if(keys['s']) player.y += player.speed;
+    if(keys['a']) player.x -= player.speed;
+    if(keys['d']) player.x += player.speed;
+    
+    // Collision detection with buildings
+    buildings.forEach(building => {
+        if(checkCollision(player, building)) {
+            resolveCollision(player, building);
         }
+    });
+}
 
-       for (let e=0;e<20;e++) {
-           const n={
-               x :Math.random() * map.width,
-               y :Math.random() * map.height,
-               width :200 + (200 * Math.random()),
-               height :200 + (200 * Math.random()),
-               interior:{color:"#D2B48C"}
-           };
-           
-           let t=false;
-           
-           for (const a of map.buildings) if (checkCollision(n,a)) {
-               t=true;
-               break;
-           }
-           
-           if (!t) {
-               map.buildings.push(n);
-               map.doors.push({x:n.x+n.width/2,y:n.y+n.height,width :40,height :60,isOpen:false,openAngle :0});
-           }
-       }
+// Basic collision detection
+function checkCollision(rect1, rect2) {
+    return rect1.x < rect2.x + rect2.width &&
+           rect1.x + rect1.width > rect2.x &&
+           rect1.y < rect2.y + rect2.height &&
+           rect1.y + rect1.height > rect2.y;
+}
 
-       for (let e=0;e<4;e++) {
-           const n=vehicleTypes[Math.floor(Math.random()*vehicleTypes.length)];
-           
-           vehicles.push({
-               ...n,
-               x: Math.random() * map.width,
-               y: Math.random() * map.height,
-               angle: Math.random() * Math.PI * 2,
-               steeringAngle: 0,
-               maxSteeringAngle: Math.PI / 4,
-               driver:null,
-               passenger:null
-           });
-       }
+// Resolve collision by pushing objects apart
+function resolveCollision(rect1, rect2) {
+    const overlapX = (rect1.width + rect2.width) / 2 - Math.abs(rect1.x - rect2.x);
+    const overlapY = (rect1.height + rect2.height) / 2 - Math.abs(rect1.y - rect2.y);
+    
+    if(overlapX < overlapY) {
+        if(rect1.x < rect2.x) rect1.x -= overlapX;
+        else rect1.x += overlapX;
+    } else {
+        if(rect1.y < rect2.y) rect1.y -= overlapY;
+        else rect1.y += overlapY;
+    }
+}
 
-       function drawMap(){
-           ctx.fillStyle="#7CFC00",ctx.fillRect(0,0,canvas.width,canvas.height),ctx.fillStyle="#8B4513",ctx.fillRect(map.width/2-map.roadWidth/2-camera.x,0,map.roadWidth,canvas.height),ctx.fillRect(0,map.height/2-map.roadWidth/2-camera.y,canvas.width,map.roadWidth),ctx.fillStyle="#808080",map.buildings.forEach(e=>{ctx.fillRect(e.x-camera.x,e.y-camera.y,e.width,e.height),player.inBuilding===e&&(ctx.fillStyle=e.interior.color,ctx.fillRect(e.x-camera.x,e.y-camera.y,e.width,e.height),ctx.fillStyle="#808080")}),ctx.fillStyle="#8B4513",map.doors.forEach(e=>{ctx.save(),ctx.translate(e.x-camera.x,e.y-camera.y),ctx.rotate(e.openAngle),ctx.fillRect(-e.width/2,0,e.width,e.height),ctx.restore()})
-       }
+// Draw functions
+function drawMap() {
+    ctx.fillStyle = '#8fbc8f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
-       function drawVehicle(e){
-           ctx.save(),ctx.translate(e.x-camera.x,e.y-camera.y),ctx.rotate(e.angle),ctx.fillStyle=e.color,ctx.fillRect(-e.width/2,-e.height/2,e.width,e.height),ctx.fillStyle="#000000",ctx.save(),ctx.translate(e.width/2-10,-e.height/2),ctx.rotate(e.steeringAngle),ctx.fillRect(-5,-5,10,10),ctx.restore(),ctx.save(),ctx.translate(e.width/2-10,e.height/2),ctx.rotate(e.steeringAngle),ctx.fillRect(-5,-5,10,10),ctx.restore(),ctx.fillRect(-e.width/2+5,-e.height/2-5,10,10),ctx.fillRect(-e.width/2+5,e.height/2-5,10,10),ctx.restore(),e.driver&&drawPlayer(e.driver,!0,e),e.passenger&&drawPlayer(e.passenger,!0,e);
-       }
+function drawBuildings() {
+    ctx.fillStyle = '#808080';
+    buildings.forEach(building => {
+        ctx.fillRect(building.x, building.y, building.width, building.height);
+    });
+}
 
-       function drawPlayer(p,inVehicle=false,v=null){
-           ctx.save(),inVehicle?ctx.translate(v.x-camera.x,v.y-camera.y):ctx.translate(p.x-camera.x,p.y-camera.y),ctx.rotate(p.angle),ctx.fillStyle=p.skin,ctx.fillRect(-p.width/2,-p.height/2,p.width,p.height),ctx.drawImage(playerImage,-p.width/2,-p.height/2,p.width,p.height);
-           if (p.gun) {
-               ctx.drawImage(gunImages[p.gun.name], p.width / 2 - p.gun.length / 4 - 5 , -p.height / 4 - p.gun.length / 8 , p.gun.length +20 , p.gun.length /4); // Adjusted length
-               ctx.drawImage(gloveImages[p.gloves][0], p.width / 2 -5 , -p.height /4 -5 ,10 ,10);
-           }
-           ctx.fillStyle="#000", ctx.font="12px Arial", ctx.fillText(p.username,-20 ,30 ), ctx.fillStyle="red", ctx.fillRect(-20,-25 ,40 ,5 ), ctx.fillStyle="green", ctx.fillRect(-20,-25 ,40*p.health/100 ,5 ), ctx.restore();
-       }
+function drawVehicles() {
+    ctx.fillStyle = '#404040';
+    vehicles.forEach(vehicle => {
+        ctx.save();
+        ctx.translate(vehicle.x + vehicle.width/2, vehicle.y + vehicle.height/2);
+        ctx.rotate(vehicle.rotation);
+        ctx.fillRect(-vehicle.width/2, -vehicle.height/2, vehicle.width, vehicle.height);
+        ctx.restore();
+    });
+}
 
-       function drawBullets(){
-           bullets.forEach(b=>{
-               const bulletImage=new Image();bulletImage.src='bullet.png'; ctx.drawImage(bulletImage,b.x-camera.x,b.y-camera.y,10,10);
-           });
-       }
+function drawPlayer() {
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+}
 
-       function drawHUD(){
-           ctx.fillStyle="#000000", ctx.font="20px Arial", ctx.fillText(`Health:${player.health}`,10 ,30 ), ctx.fillText(`Gun:${player.gun?player.gun.name:"None"}`,10 ,60 ), ctx.fillText(`Ammo:${player.magazineAmmo}/${player.ammo}`,10 ,90 );
-       }
+function drawAI() {
+    aiPlayers.forEach(ai => {
+        ctx.fillStyle = ai.color;
+        ctx.fillRect(ai.x, ai.y, ai.width, ai.height);
+    });
+}
 
-       function updateBullets(){
-           for(let b=bullets.length-1;b>=0;b--){
-               bullets[b].x+=10*Math.cos(bullets[b].angle);
-               bullets[b].y+=10*Math.sin(bullets[b].angle);
-               let hit=false;
+function drawBullets() {
+    ctx.fillStyle = '#ffff00';
+    bullets.forEach(bullet => {
+        ctx.beginPath();
+        ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
 
-               [player,...aiPlayers].forEach(t=>{
-                   if(t!==bullets[b].shooter&&!t.inBuilding&&checkCollision(bullets[b],t)){
-                       t.health-=bullets[b].damage;
-                       if(t.health<=0){
-                           t===player?console.log("Game Over"):aiPlayers.splice(aiPlayers.indexOf(t),1);
-                       }
-                       hit=true;
-                   }
-               });
+// Event listeners
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth - 40;
+    canvas.height = window.innerHeight - 40;
+});
 
-               vehicles.forEach(t=>{checkCollision(bullets[b],t)&&(hit=true)});
-               map.buildings.forEach(t=>{checkCollision(bullets[b],t)&&(hit=true)});
+canvas.addEventListener('click', e => {
+    if(!gameRunning) return;
+    
+    const angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+    bullets.push({
+        x: player.x + player.width/2,
+        y: player.y + player.height/2,
+        speed: BULLET_SPEED,
+        angle: angle,
+        damage: getWeaponDamage(player.weapon)
+    });
+});
 
-               if(!hit && (bullets[b].x<0 || bullets[b].x>map.width || bullets[b].y<0 || bullets[b].y>map.height)){
-                   bullets.splice(bullets.indexOf(b),1);
-               }
-           }
-       }
+function getWeaponDamage(weapon) {
+    const damages = {
+        pistol: 10,
+        shotgun: 25,
+        rifle: 15,
+        auto: 20
+    };
+    return damages[weapon] || 10;
+}
 
-       function shoot(e){
-           if(e.gun && e.magazineAmmo > 0){
-               const count=e.gun.bulletCount;
-               for(let i=0;i<count;i++){
-                   const angle=e.angle+(count>1?.1*(i-(count-1)/2):0);
-                   bullets.push({x:e.x+30*Math.cos(angle),y:e.y+30*Math.sin(angle),angle,dame:e.gun.damage});
-               }
-               e.magazineAmmo--;
-           }
-       }
+function updateHUD() {
+    document.getElementById('health').textContent = `Health: ${player.health}`;
+    document.getElementById('ammo').textContent = `Ammo: ${player.ammo}`;
+    document.getElementById('weapon').textContent = `Weapon: ${player.weapon}`;
+}
 
-       function reload(e){
-           if(e.gun && e.ammo > 0){
-               const needed=e.magazineSize-e.magazineAmmo;
-               let toReload=Math.min(needed,e.ammo);
-               e.magazineAmmo+=toReload;
-               e.ammo-=toReload;
-           }
-       }
+function startGame() {
+    player.weapon = document.getElementById('weaponSelect').value;
+    document.getElementById('menu').style.display = 'none';
+    gameRunning = true;
+    init();
+    gameLoop();
+}
 
-       function checkCollision(a,b){
-           return a.x<b.x+b.width && a.x+a.width>b.x && a.y<b.y+b.height && a.y+a.height>b.y;
-       }
-
-       function updateAI(ai){
-           switch(ai.state){
-               case "wandering":
-                   ai.x+=Math.cos(ai.angle)*ai.speed;
-                   ai.y+=Math.sin(ai.angle)*ai.speed;
-                   if(Math.random()<.02){ai.angle=2*Math.random()*Math.PI;}
-                   if(!ai.inVehicle && !ai.inBuilding){
-                       let target=null,targetDistance=Infinity;
-
-                       vehicles.forEach(v=>{
-                           if(v.driver && !v.passenger || !v.driver){
-                               let distance=Math.hypot(v.x-ai.x,v.y-ai.y);
-                               if(distance<targetDistance){target=v;targetDistance=distance;}
-                           }
-                       });
-
-                       if(target && targetDistance<100){ai.state="seeking_vehicle";ai.target=target;}
-                   }
-                   break;
-
-               case "seeking_vehicle":
-                   let targetX=ai.target.x-ai.x,targetY=ai.target.y-ai.y;
-
-                   ai.angle=Math.atan2(targetY,targetX);
-                   ai.x+=Math.cos(ai.angle)*ai.speed;
-                   ai.y+=Math.sin(ai.angle)*ai.speed;
-
-                   if(Math.hypot(targetX,targetY)<10){
-                       let v=ai.target;
-                       v.driver?v.passenger||(v.passenger=ai):v.driver=ai;
-                       ai.inVehicle=v; ai.state="wandering"; ai.target=null;
-                   }
-
-                   if(ai.targetTimer++>300){ai.state="wandering"; ai.target=null;}
-                   break;
-           }
-
-           if(ai.inBuilding){
-               ai.x=Math.max(ai.inBuilding.x*Math.min(ai.inBuilding.x+ai.inBuilding.width-ai.width));
-               ai.y=Math.max(ai.inBuilding.y*Math.min(ai.inBuilding.y+ai.inBuilding.height-ai.height));
-           } else {
-               map.buildings.forEach(n=>{
-                   if(checkCollision(ai,n)){
-                       let dx=Math.min(ai.x+ai.width-n.x,n.x+n.width-ai.x),
-                           dy=Math.min(ai.y+ai.height-n.y,n.y+n.height-ai.y);
-                       dx<dy?ai.x+=ai.x<n.x?-dx:+dx : ai.y+=ai.y<n.y?-dy:+dy
-                   }
-               });
-               
-              ai.x=Math.max(0.Math.min(map.width));
-              ai.y=Math.max(0.Math.min(map.height));
-
-              Math.random()<.01&&shoot(ai);
-              if(!ai.magazineAmmo&&Math.random()<.1) reload(ai);
-          }
-      }
-
-      function updateVehicle(v){
-          if(v.driver){
-              let keys=v.driver===player?window.keys:{};
-              
-              keys.w?v.speed=Math.min(v.speed+.1,v.maxSpeed):
-              keys.s?v.speed=Math.max(v.speed-.1,-v.maxSpeed/2):
-              v.speed*=.98;
-
-              keys.a?v.steeringAngle=Math.max(-v.maxSteeringAngle,v.steeringAngle-.02):
-              keys.d?v.steeringAngle=Math.min(v.maxSteeringAngle,v.steeringAngle+.02):
-              v.steeringAngle*=.9;
-
-              v.angle+=v.steeringAngle*v.speed/30;
-
-              v.x+=Math.cos(v.angle)*v.speed;
-              v.y+=Math.sin(v.angle)*v.speed;
-
-              let collision=false;
-
-              vehicles.forEach(other=>{
-                  if(other!==v && checkCollision(v,other)){
-                      collision=true;
-                  }
-              });
-
-              map.buildings.forEach(b=>{
-                  checkCollision(v,b)&&(collision=true);
-              });
-
-              collision&&(v.speed=0);
-
-              v.driver.vx=v.driver.vy=v.driver.vz=v.driver.vw=v.driver.vh=v.driver.vj=v.driver.vk=v.driver.vl=v.driver.vm=v.driver.vn=v.driver.vo=wdriver.wb=wdriver.wc=wdriver.wd=wdriver.we=wdriver.wf=wdriver.wg=wdriver.wh=wdriver.wi=wdriver.wj=wdriver.wk=wdriver.wl=wdriver.wm=wdriver.wn=wdriver.wo=wdriver.wp=wdriver.wq=wdriver.wr=wdriver.ws=wdriver.wt=wdriver.wu=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;</script></body></html>
+// Show menu on load
+document.getElementById('menu').style.display = 'block';
+</script>
+</body>
+</html>
