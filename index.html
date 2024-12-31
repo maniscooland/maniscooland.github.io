@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Battle Royale</title>
+    <title>Off-Road Driving</title>
     <style>
         * {
             margin: 0;
@@ -10,7 +10,7 @@
         }
         canvas {
             display: block;
-            background: #eee;
+            background: #90EE90;
         }
     </style>
 </head>
@@ -27,193 +27,117 @@
             canvas.height = window.innerHeight;
         });
 
+        // Create dirt road paths
+        const roads = [
+            {x: 100, y: 100, width: 800, height: 60},
+            {x: 300, y: 100, width: 60, height: 500},
+            {x: 300, y: 540, width: 500, height: 60},
+            {x: 800, y: 200, width: 60, height: 400}
+        ];
+
         class Vehicle {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.width = 120;
-                this.height = 80;
-                this.speed = 5;
+                this.width = 80;
+                this.height = 40;
+                this.wheelBase = 40;
+                this.wheelAngle = 0;
+                this.maxWheelAngle = Math.PI/4;
                 this.rotation = 0;
-                this.driver = null;
-                this.maxSpeed = 8;
+                this.speed = 0;
+                this.maxSpeed = 5;
                 this.acceleration = 0.2;
-                this.currentSpeed = 0;
                 this.friction = 0.98;
             }
 
             draw() {
                 ctx.save();
-                ctx.translate(this.x + this.width/2, this.y + this.height/2);
+                ctx.translate(this.x, this.y);
                 ctx.rotate(this.rotation);
-                ctx.translate(-this.width/2, -this.height/2);
-                
+
                 // Car body
-                ctx.fillStyle = '#444';
-                ctx.fillRect(0, 0, this.width, this.height);
-                
-                // Wheels
-                ctx.fillStyle = '#222';
-                const wheelSize = 20;
-                [[0,0], [this.width-wheelSize,0], [0,this.height-wheelSize], [this.width-wheelSize,this.height-wheelSize]]
-                    .forEach(([x,y]) => ctx.fillRect(x, y, wheelSize, wheelSize));
-                
-                // Side-by-side Seats
-                ctx.fillStyle = '#333';
-                [[45,10], [45,45]].forEach(([x,y]) => ctx.fillRect(x, y, 25, 25));
-                
-                // Driver
-                if (this.driver) {
-                    ctx.save();
-                    ctx.translate(57, 22);
-                    ctx.rotate(this.rotation * -1 + Math.PI/2);
-                    
-                    // Body
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 12, 0, Math.PI * 2);
-                    ctx.fillStyle = this.driver.color;
-                    ctx.fill();
-                    
-                    // Hands
-                    [[15,-10], [15,2]].forEach(([x,y]) => ctx.fillRect(x, y, 8, 8));
-                    
-                    ctx.restore();
-                }
-                
+                ctx.fillStyle = '#4444FF';
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+
+                // Back wheels (fixed)
+                ctx.fillStyle = '#000';
+                ctx.fillRect(-this.width/2, -this.height/2 - 5, 10, 5);
+                ctx.fillRect(-this.width/2, this.height/2, 10, 5);
+
+                // Front wheels (turning)
+                ctx.save();
+                ctx.translate(this.width/2 - 10, -this.height/2 - 5);
+                ctx.rotate(this.wheelAngle);
+                ctx.fillRect(0, 0, 10, 5);
+                ctx.restore();
+
+                ctx.save();
+                ctx.translate(this.width/2 - 10, this.height/2);
+                ctx.rotate(this.wheelAngle);
+                ctx.fillRect(0, 0, 10, 5);
+                ctx.restore();
+
                 ctx.restore();
             }
 
             update() {
-                if (this.driver) {
-                    // Apply friction
-                    this.currentSpeed *= this.friction;
-                    
-                    // Update position based on current speed
-                    this.x += Math.cos(this.rotation) * this.currentSpeed;
-                    this.y += Math.sin(this.rotation) * this.currentSpeed;
-                    
-                    // Keep in bounds with bounce effect
-                    if (this.x < 0 || this.x > canvas.width - this.width) {
-                        this.currentSpeed *= -0.5;
-                        this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
-                    }
-                    if (this.y < 0 || this.y > canvas.height - this.height) {
-                        this.currentSpeed *= -0.5;
-                        this.y = Math.max(0, Math.min(canvas.height - this.height, this.y));
-                    }
+                // Steering
+                if (keys.a) this.wheelAngle = Math.max(-this.maxWheelAngle, this.wheelAngle - 0.1);
+                if (keys.d) this.wheelAngle = Math.min(this.maxWheelAngle, this.wheelAngle + 0.1);
+                if (!keys.a && !keys.d) this.wheelAngle *= 0.5;
+
+                // Acceleration
+                if (keys.w) this.speed = Math.min(this.maxSpeed, this.speed + this.acceleration);
+                if (keys.s) this.speed = Math.max(-this.maxSpeed/2, this.speed - this.acceleration);
+                
+                // Apply friction
+                this.speed *= this.friction;
+
+                // Update position and rotation based on bicycle model
+                if (Math.abs(this.speed) > 0.1) {
+                    const turnRadius = this.wheelBase / Math.sin(this.wheelAngle);
+                    this.rotation += this.speed / turnRadius;
                 }
+
+                this.x += Math.cos(this.rotation) * this.speed;
+                this.y += Math.sin(this.rotation) * this.speed;
+
+                // Keep in bounds
+                this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
+                this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
             }
         }
 
-        class Player {
-            constructor(x, y, isAI = false) {
-                this.x = x;
-                this.y = y;
-                this.rotation = 0;
-                this.speed = 5;
-                this.isAI = isAI;
-                this.color = isAI ? `hsl(${Math.random()*360},70%,50%)` : '#4285f4';
-                this.vehicle = null;
-                this.state = 'wandering';
-                this.targetX = x;
-                this.targetY = y;
-                this.stateTimer = 0;
-                this.size = 20;
-            }
-
-            draw() {
-                if (this.vehicle) return;
+        function drawRoads() {
+            roads.forEach(road => {
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(road.x, road.y, road.width, road.height);
                 
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation);
-                
-                // Body
-                ctx.beginPath();
-                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-                
-                // Hands
-                ctx.fillStyle = this.color;
-                [[15,-10], [15,0]].forEach(([x,y]) => ctx.fillRect(x, y, 10, 10));
-                
-                ctx.restore();
-            }
-
-            update(vehicles) {
-                if (!this.isAI) {
-                    if (!this.vehicle) {
-                        // Player movement
-                        const moveX = (keys.d ? 1 : 0) - (keys.a ? 1 : 0);
-                        const moveY = (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
-                        
-                        if (moveX || moveY) {
-                            const magnitude = Math.sqrt(moveX * moveX + moveY * moveY);
-                            this.x += (moveX / magnitude) * this.speed;
-                            this.y += (moveY / magnitude) * this.speed;
-                        }
-                        
-                        // Mouse aim
-                        const dx = mouseX - this.x;
-                        const dy = mouseY - this.y;
-                        this.rotation = Math.atan2(dy, dx) + Math.PI/2;
-
-                        // Vehicle entry
-                        if (keys.e) {
-                            vehicles.forEach(v => {
-                                if (!v.driver && Math.hypot(v.x + v.width/2 - this.x, v.y + v.height/2 - this.y) < 50) {
-                                    this.vehicle = v;
-                                    v.driver = this;
-                                }
-                            });
-                        }
-                    } else {
-                        // Vehicle controls
-                        if (keys.w) this.vehicle.currentSpeed = Math.min(this.vehicle.maxSpeed, this.vehicle.currentSpeed + this.vehicle.acceleration);
-                        if (keys.s) this.vehicle.currentSpeed = Math.max(-this.vehicle.maxSpeed/2, this.vehicle.currentSpeed - this.vehicle.acceleration);
-                        if (keys.a) this.vehicle.rotation -= 0.05 * Math.abs(this.vehicle.currentSpeed/this.vehicle.maxSpeed);
-                        if (keys.d) this.vehicle.rotation += 0.05 * Math.abs(this.vehicle.currentSpeed/this.vehicle.maxSpeed);
-                        
-                        if (keys.e) {
-                            this.vehicle.driver = null;
-                            this.vehicle = null;
+                // Add road texture
+                ctx.fillStyle = '#73370D';
+                for(let i = 0; i < road.width; i += 20) {
+                    for(let j = 0; j < road.height; j += 20) {
+                        if((i + j) % 40 === 0) {
+                            ctx.fillRect(road.x + i, road.y + j, 10, 10);
                         }
                     }
-                } else {
-                    // AI logic here (similar to before but with improved vehicle handling)
                 }
-            }
+            });
         }
 
-        const player = new Player(canvas.width/2, canvas.height/2);
-        const vehicles = Array(8).fill().map(() => new Vehicle(
-            Math.random() * (canvas.width - 200),
-            Math.random() * (canvas.height - 200)
-        ));
-        const aiPlayers = Array(15).fill().map(() => new Player(
-            Math.random() * canvas.width,
-            Math.random() * canvas.height,
-            true
-        ));
-
-        const keys = {w: false, s: false, a: false, d: false, e: false};
-        let mouseX = 0, mouseY = 0;
+        const vehicle = new Vehicle(400, 300);
+        const keys = {w: false, s: false, a: false, d: false};
 
         window.addEventListener('keydown', e => keys[e.key] = true);
         window.addEventListener('keyup', e => keys[e.key] = false);
-        window.addEventListener('mousemove', e => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-        });
 
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            [...vehicles, ...aiPlayers, player].forEach(entity => {
-                entity.update?.(vehicles);
-                entity.draw();
-            });
+            drawRoads();
+            vehicle.update();
+            vehicle.draw();
             
             requestAnimationFrame(gameLoop);
         }
