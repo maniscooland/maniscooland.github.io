@@ -193,18 +193,35 @@
                             break;
 
                         case 'driving':
-                            if (this.vehicle) {
-                                if (this.stateTimer > 300) {
-                                    this.vehicle.driver = null;
-                                    this.vehicle = null;
-                                    this.state = 'wandering';
-                                    this.stateTimer = 0;
-                                    this.setNewTarget();
-                                } else {
-                                    this.vehicle.rotation += 0.03;
-                                }
-                            }
-                            break;
+    if (this.vehicle) {
+        if (this.stateTimer > 300) {
+            this.vehicle.driver = null;
+            this.vehicle = null;
+            this.state = 'wandering';
+            this.stateTimer = 0;
+            this.setNewTarget();
+        } else {
+            // Random movement target
+            if (this.stateTimer % 100 === 0) {
+                this.targetX = Math.random() * canvas.width;
+                this.targetY = Math.random() * canvas.height;
+            }
+            
+            // Calculate angle to target
+            const dx = this.targetX - this.vehicle.x;
+            const dy = this.targetY - this.vehicle.y;
+            const targetAngle = Math.atan2(dy, dx);
+            
+            // Smooth rotation towards target
+            let angleDiff = targetAngle - this.vehicle.rotation;
+            if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            
+            this.vehicle.rotation += angleDiff * 0.1;
+        }
+    }
+    break;
+
                     }
                 }
             }
