@@ -59,10 +59,10 @@
         ];
 
         const guns = [
-            { name:'pistol', color:'#8B4513', length :30 , image:'pistol.png', displayImage:'pistolD.png', bulletCount :1 , damage :2 , slot:'P' },
-            { name:'shotgun', color:'#A0522D', length :40 , image:'shotgun.png', displayImage:'shotgunD.png', bulletCount :4 , damage :5 , slot:'S' },
-            { name:'rifle', color:'#D2691E', length :50 , image:'rifle.png', displayImage:'rifleD.png', bulletCount :1 , damage :3 , slot:'R' },
-            { name:'aShotgun', color:'#8B4513', length :45 , image:'aShotgun.png', displayImage:'aShotgunD.png', bulletCount :4 , damage :6 , slot:'S' }
+            { name:'pistol', color:'#8B4513', length :40 , image:'pistol.png', displayImage:'pistolD.png', bulletCount :1 , damage :2 , slot:'P' },
+            { name:'shotgun', color:'#A0522D', length :50 , image:'shotgun.png', displayImage:'shotgunD.png', bulletCount :4 , damage :5 , slot:'S' },
+            { name:'rifle', color:'#D2691E', length :60 , image:'rifle.png', displayImage:'rifleD.png', bulletCount :1 , damage :3 , slot:'R' },
+            { name:'aShotgun', color:'#8B4513', length :55 , image:'aShotgun.png', displayImage:'aShotgunD.png', bulletCount :4 , damage :6 , slot:'S' }
         ];
 
         const skins = ['default', 'red', 'blue', 'green'];
@@ -76,13 +76,10 @@
         playerImage.src = 'player.png';
 
         const gunImages = {};
-        const gunDisplayImages = {};
         
         guns.forEach(gun => {
             gunImages[gun.name] = new Image();
             gunImages[gun.name].src = gun.image;
-            gunDisplayImages[gun.name] = new Image();
-            gunDisplayImages[gun.name].src = gun.displayImage;
         });
 
         const gloveImages = {};
@@ -169,8 +166,8 @@
        function drawPlayer(p,inVehicle=false,v=null){
            ctx.save(),inVehicle?ctx.translate(v.x-camera.x,v.y-camera.y):ctx.translate(p.x-camera.x,p.y-camera.y),ctx.rotate(p.angle),ctx.fillStyle=p.skin,ctx.fillRect(-p.width/2,-p.height/2,p.width,p.height),ctx.drawImage(playerImage,-p.width/2,-p.height/2,p.width,p.height);
            if (p.gun) {
-               ctx.drawImage(gunImages[p.gun.name], p.width / 2 - p.gun.length / 4, -p.height / 4 - p.gun.length / 8 , p.gun.length + 20 , p.gun.length / 4); // Adjusted length
-               ctx.drawImage(gloveImages[p.gloves][0], p.width / 2 - 5 , -p.height / 4 -5 ,10 ,10);
+               ctx.drawImage(gunImages[p.gun.name], p.width / 2 - p.gun.length / 4 - 5 , -p.height / 4 - p.gun.length / 8 , p.gun.length +20 , p.gun.length /4); // Adjusted length
+               ctx.drawImage(gloveImages[p.gloves][0], p.width / 2 -5 , -p.height /4 -5 ,10 ,10);
            }
            ctx.fillStyle="#000", ctx.font="12px Arial", ctx.fillText(p.username,-20 ,30 ), ctx.fillStyle="red", ctx.fillRect(-20,-25 ,40 ,5 ), ctx.fillStyle="green", ctx.fillRect(-20,-25 ,40*p.health/100 ,5 ), ctx.restore();
        }
@@ -283,8 +280,8 @@
                    }
                });
                
-               ai.x=Math.max(0.Math.min(map.width));
-               ai.y=Math.max(0.Math.min(map.height));
+              ai.x=Math.max(0.Math.min(map.width));
+              ai.y=Math.max(0.Math.min(map.height));
 
               Math.random()<.01&&shoot(ai);
               if(!ai.magazineAmmo&&Math.random()<.1) reload(ai);
@@ -322,4 +319,4 @@
 
               collision&&(v.speed=0);
 
-              v.driver.vx=v.driver.vy=v.driver.vz=v.driver.vw=v.driver.vh=v.driver.vj=v.driver.vk=v.driver.vl=v.driver.vm=v.driver.vn=v.driver.vo=v.driver.vp=wdriver.wb=wdriver.wc=wdriver.wd=wdriver.we=wdriver.wf=wdriver.wg=wdriver.wh=wdriver.wi=wdriver.wj=wdriver.wk=wdriver.wl=wdriver.wm=wdriver.wn=wdriver.wo=wdriver.wp=wdriver.wq=wdriver.wr=wdriver.ws=wdriver.wt=wdriver.wu=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;</script></body></html>
+              v.driver.vx=v.driver.vy=v.driver.vz=v.driver.vw=v.driver.vh=v.driver.vj=v.driver.vk=v.driver.vl=v.driver.vm=v.driver.vn=v.driver.vo=wdriver.wb=wdriver.wc=wdriver.wd=wdriver.we=wdriver.wf=wdriver.wg=wdriver.wh=wdriver.wi=wdriver.wj=wdriver.wk=wdriver.wl=wdriver.wm=wdriver.wn=wdriver.wo=wdriver.wp=wdriver.wq=wdriver.wr=wdriver.ws=wdriver.wt=wdriver.wu=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x=y=z=x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=z;x;y=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j=j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;j;k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k=k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;k;l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l=l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;l;i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;i;q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q=q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;q;</script></body></html>
