@@ -50,24 +50,23 @@
         ];
 
         const camera = {
-    x: 0,
-    y: 0,
-    scale: 0.5, // This creates a more zoomed out view
-    follow(target) {
-        const targetX = -target.x * this.scale + canvas.width/2;
-        const targetY = -target.y * this.scale + canvas.height/2;
-        this.x += (targetX - this.x) * 0.1;
-        this.y += (targetY - this.y) * 0.1;
-    }
-};
-
+            x: 0,
+            y: 0,
+            scale: 0.25,
+            follow(target) {
+                const targetX = -target.x * this.scale + canvas.width/2;
+                const targetY = -target.y * this.scale + canvas.height/2;
+                this.x += (targetX - this.x) * 0.1;
+                this.y += (targetY - this.y) * 0.1;
+            }
+        };
 
         class Character {
             constructor(x, y, team = 'neutral') {
                 this.x = x;
                 this.y = y;
                 this.rotation = 0;
-                this.speed = 8;
+                this.speed = 15;
                 this.health = 100;
                 this.team = team;
                 this.vehicle = null;
@@ -163,7 +162,7 @@
                 this.maxWheelAngle = Math.PI/4;
                 this.rotation = 0;
                 this.speed = 0;
-                this.maxSpeed = 15;
+                this.maxSpeed = 30;
                 this.acceleration = 0.4;
                 this.friction = 0.98;
                 this.driver = null;
@@ -220,7 +219,7 @@
                         if (keys.d) this.wheelAngle = Math.min(this.maxWheelAngle, this.wheelAngle + 0.1);
                         if (!keys.a && !keys.d) this.wheelAngle *= 0.5;
                     } else {
-                        this.speed = 6;
+                        this.speed = 12;
                         this.wheelAngle = Math.sin(Date.now() / 1000) * this.maxWheelAngle;
                     }
 
@@ -301,8 +300,8 @@
         window.addEventListener('keydown', e => keys[e.key] = true);
         window.addEventListener('keyup', e => keys[e.key] = false);
         window.addEventListener('mousemove', e => {
-            mouseX = e.clientX - camera.x;
-            mouseY = e.clientY - camera.y;
+            mouseX = e.clientX/camera.scale - camera.x/camera.scale;
+            mouseY = e.clientY/camera.scale - camera.y/camera.scale;
         });
 
         function updatePlayer() {
@@ -339,9 +338,8 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             ctx.save();
-ctx.translate(camera.x, camera.y);
-ctx.scale(camera.scale, camera.scale);
-
+            ctx.translate(camera.x, camera.y);
+            ctx.scale(camera.scale, camera.scale);
             
             drawWorld();
             
