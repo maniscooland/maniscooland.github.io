@@ -54,15 +54,15 @@
     ctx.fillRect(-5, this.height - 15, 20, 20);
     ctx.fillRect(this.width - 15, this.height - 15, 20, 20);
     
-    // Bigger Seats
+    // Side-by-side Seats
     ctx.fillStyle = '#444';
-    ctx.fillRect(35, 15, 25, 25);  // Left seat
-    ctx.fillRect(65, 15, 25, 25);  // Right seat
+    ctx.fillRect(45, 10, 25, 25);  // Left seat
+    ctx.fillRect(45, 45, 25, 25);  // Right seat
     
     // Driver
     if (this.driver) {
         ctx.save();
-        ctx.translate(50, 30);
+        ctx.translate(57, 22);  // Centered in left seat
         ctx.rotate(this.rotation * -1 + Math.PI/2);
         
         // Body
@@ -80,6 +80,7 @@
     
     ctx.restore();
 }
+
 
 
 
