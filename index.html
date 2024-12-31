@@ -62,6 +62,9 @@
                 this.inVehicle = null;
                 this.shootCooldown = 0;
                 this.target = null;
+                this.aiState = 'roaming';
+                this.targetX = null;
+                this.targetY = null;
             }
 
             draw() {
@@ -106,7 +109,6 @@
                 if (this.isAI) {
                     this.updateAI();
                 } else if (!this.inVehicle) {
-                    // Player movement
                     if (keys['w']) this.y -= this.speed;
                     if (keys['s']) this.y += this.speed;
                     if (keys['a']) this.x -= this.speed;
@@ -117,27 +119,70 @@
             }
 
             updateAI() {
-                if (!this.target || this.target.health <= 0) {
-                    this.findNewTarget();
+                // Random behavior switching
+                if (Math.random() < 0.005) {
+                    this.aiState = Math.random() < 0.5 ? 'roaming' : 'hunting';
                 }
 
-                if (this.target) {
-                    const dx = this.target.x - this.x;
-                    const dy = this.target.y - this.y;
-                    this.angle = Math.atan2(dy, dx);
-                    
-                    // Move towards target
-                    this.x += Math.cos(this.angle) * this.speed * 0.5;
-                    this.y += Math.sin(this.angle) * this.speed * 0.5;
+                // Try to enter vehicle
+                if (!this.inVehicle && Math.random() < 0.01) {
+                    const nearbyVehicle = vehicles.find(v => 
+                        Math.hypot(v.x - this.x, v.y - this.y) < 100 &&
+                        !v.driver && v.health > 0
+                    );
+                    if (nearbyVehicle) {
+                        nearbyVehicle.driver = this;
+                        this.inVehicle = nearbyVehicle;
+                    }
+                }
 
-                    // Shoot at target
-                    if (Math.random() < 0.05) this.shoot();
+                // Exit vehicle randomly
+                if (this.inVehicle && Math.random() < 0.005) {
+                    this.inVehicle.driver = null;
+                    this.x = this.inVehicle.x + 50;
+                    this.y = this.inVehicle.y;
+                    this.inVehicle = null;
+                }
+
+                if (this.inVehicle) {
+                    // Vehicle driving behavior
+                    if (Math.random() < 0.1) this.inVehicle.speed = 5;
+                    if (Math.random() < 0.05) this.inVehicle.angle += (Math.random() - 0.5) * 0.2;
+                } else {
+                    // On-foot behavior
+                    if (this.aiState === 'roaming') {
+                        // Random movement
+                        if (Math.random() < 0.05) {
+                            this.targetX = Math.random() * canvas.width;
+                            this.targetY = Math.random() * canvas.height;
+                        }
+                        if (this.targetX) {
+                            const dx = this.targetX - this.x;
+                            const dy = this.targetY - this.y;
+                            this.angle = Math.atan2(dy, dx);
+                            this.x += Math.cos(this.angle) * this.speed * 0.5;
+                            this.y += Math.sin(this.angle) * this.speed * 0.5;
+                        }
+                    } else {
+                        // Hunting behavior
+                        if (!this.target || this.target.health <= 0) {
+                            this.findNewTarget();
+                        }
+                        if (this.target) {
+                            const dx = this.target.x - this.x;
+                            const dy = this.target.y - this.y;
+                            this.angle = Math.atan2(dy, dx);
+                            this.x += Math.cos(this.angle) * this.speed * 0.5;
+                            this.y += Math.sin(this.angle) * this.speed * 0.5;
+                            if (Math.random() < 0.05) this.shoot();
+                        }
+                    }
                 }
             }
 
             findNewTarget() {
                 const possibleTargets = [...players, mainPlayer].filter(p => 
-                    p !== this && p.health > 0 && !p.isAI
+                    p !== this && p.health > 0
                 );
                 if (possibleTargets.length > 0) {
                     this.target = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
@@ -190,12 +235,16 @@
                 if (this.health <= 0) return;
                 
                 if (this.driver) {
-                    if (keys['w']) this.speed = 5;
-                    else if (keys['s']) this.speed = -3;
-                    else this.speed *= 0.95;
+                    if (this.driver.isAI) {
+                        // AI driving is handled in updateAI()
+                    } else {
+                        if (keys['w']) this.speed = 5;
+                        else if (keys['s']) this.speed = -3;
+                        else this.speed *= 0.95;
 
-                    if (keys['a']) this.angle -= 0.05;
-                    if (keys['d']) this.angle += 0.05;
+                        if (keys['a']) this.angle -= 0.05;
+                        if (keys['d']) this.angle += 0.05;
+                    }
 
                     this.driver.x = this.x;
                     this.driver.y = this.y;
@@ -236,7 +285,6 @@
         window.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
             if (e.key === 'e') {
-                // Vehicle entry/exit
                 if (!mainPlayer.inVehicle) {
                     const nearbyVehicle = vehicles.find(v => 
                         Math.hypot(v.x - mainPlayer.x, v.y - mainPlayer.y) < 100 &&
@@ -266,9 +314,7 @@
         });
 
         function checkCollisions() {
-            // Bullet collisions
             bullets.forEach(bullet => {
-                // Check player hits
                 [...players, mainPlayer].forEach(player => {
                     if (player !== bullet.shooter && player.health > 0 && !player.inVehicle) {
                         if (Math.hypot(bullet.x - player.x, bullet.y - player.y) < 20) {
@@ -278,7 +324,6 @@
                     }
                 });
 
-                // Check vehicle hits
                 vehicles.forEach(vehicle => {
                     if (vehicle.health > 0 &&
                         bullet.x > vehicle.x - vehicle.width/2 &&
@@ -295,13 +340,11 @@
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Update and draw vehicles
             vehicles.forEach(v => {
                 v.update();
                 v.draw();
             });
 
-            // Update and draw players
             mainPlayer.update();
             mainPlayer.draw();
             players.forEach(p => {
@@ -309,13 +352,11 @@
                 p.draw();
             });
 
-            // Update and draw bullets
             bullets.forEach(b => {
                 b.update();
                 b.draw();
             });
 
-            // Clean up inactive bullets
             bullets.forEach((bullet, index) => {
                 if (!bullet.active || 
                     bullet.x < 0 || bullet.x > canvas.width ||
