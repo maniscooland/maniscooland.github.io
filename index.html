@@ -280,14 +280,14 @@
         const player = new Character(WORLD_WIDTH/2, WORLD_HEIGHT/2, 'player');
         player.isAI = false;
 
-        const vehicles = Array(40).fill().map(() => new Vehicle(
-            Math.random() * (WORLD_WIDTH - 400) + 200,
-            Math.random() * (WORLD_HEIGHT - 400) + 200
-        ));
+        const vehicles = Array(400).fill().map(() => new Vehicle(
+    Math.random() * (WORLD_WIDTH - 400) + 200,
+    Math.random() * (WORLD_HEIGHT - 400) + 200
+));
 
         const characters = [
             player,
-            ...Array(20).fill().map(() => new Character(
+            ...Array(300).fill().map(() => new Character(
                 Math.random() * WORLD_WIDTH,
                 Math.random() * WORLD_HEIGHT,
                 ['red', 'blue', 'green'][Math.floor(Math.random() * 3)]
