@@ -15,6 +15,11 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
+        const glove1 = new Image();
+        const glove2 = new Image();
+        glove1.src = 'ga1.png';
+        glove2.src = 'ga2.png';
+
         const WORLD_WIDTH = 90000;
         const WORLD_HEIGHT = 90000;
         const SCENE_SIZE = WORLD_WIDTH / 2;
@@ -101,8 +106,8 @@
                 ctx.fillStyle = this.color;
                 ctx.fill();
                 
-                ctx.fillRect(30, -20, 20, 20);
-                ctx.fillRect(30, 0, 20, 20);
+                ctx.drawImage(glove1, 30, -20, 20, 20);
+                ctx.drawImage(glove2, 30, 0, 20, 20);
                 
                 ctx.restore();
             }
@@ -201,8 +206,8 @@
                     ctx.fillStyle = this.driver.color;
                     ctx.fill();
                     
-                    ctx.fillRect(30, -20, 20, 20);
-                    ctx.fillRect(30, 0, 20, 20);
+                    ctx.drawImage(glove1, 30, -20, 20, 20);
+                    ctx.drawImage(glove2, 30, 0, 20, 20);
                     
                     ctx.restore();
                 }
@@ -280,17 +285,17 @@
         const player = new Character(WORLD_WIDTH/2, WORLD_HEIGHT/2, 'player');
         player.isAI = false;
 
-        const vehicles = Array(100).fill().map(() => new Vehicle(
-    Math.random() * (WORLD_WIDTH - 400) + 200,
-    Math.random() * (WORLD_HEIGHT - 400) + 200
-));
+        const vehicles = Array(200).fill().map(() => new Vehicle(
+            Math.random() * (WORLD_WIDTH - 400) + 200,
+            Math.random() * (WORLD_HEIGHT - 400) + 200
+        ));
 
         const characters = [
             player,
-            ...Array(300).fill().map(() => new Character(
+            ...Array(100).fill().map(() => new Character(
                 Math.random() * WORLD_WIDTH,
                 Math.random() * WORLD_HEIGHT,
-                ['red', 'blue', 'green', 'purple', 'pink'][Math.floor(Math.random() * 3)]
+                ['red', 'blue', 'green'][Math.floor(Math.random() * 3)]
             ))
         ];
 
