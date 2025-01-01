@@ -78,27 +78,36 @@ class Vehicle {
     }
 
     draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+    
+    if (!this.vehicle) {
+        // Player body
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
         
-        // Vehicle body
-        ctx.fillStyle = this.type === 'tank' ? '#355E3B' : '#8B4513';
-        ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+        // Draw gloves in front
+        const gloveScale = 0.4; // This maintains aspect ratio while scaling down
+        const gloveWidth = 53 * gloveScale;
+        const gloveHeight = 83 * gloveScale;
         
-        // Draw gloves as hands for vehicles
-        const gloveSize = 24;
-        ctx.drawImage(ga1Image, -this.width/2 - gloveSize, -gloveSize/2, gloveSize, gloveSize);
-        ctx.drawImage(ga2Image, this.width/2, -gloveSize/2, gloveSize, gloveSize);
-        
-        ctx.restore();
-
-        // Health bar
-        ctx.fillStyle = 'red';
-        ctx.fillRect(this.x - 30, this.y - 40, 60, 5);
-        ctx.fillStyle = 'green';
-        ctx.fillRect(this.x - 30, this.y - 40, (this.health/(this.type === 'tank' ? 200 : 100)) * 60, 5);
+        ctx.drawImage(ga1Image, -gloveWidth/2, this.radius, gloveWidth, gloveHeight);
+        ctx.drawImage(ga2Image, -gloveWidth/2, this.radius, gloveWidth, gloveHeight);
     }
+    
+    ctx.restore();
+
+    // Health bar stays the same
+    ctx.fillStyle = 'red';
+    ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
+    ctx.fillStyle = 'green';
+    ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
+}
+
 }
 
 class Glove {
