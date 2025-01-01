@@ -19,6 +19,14 @@
             color: white;
             font-family: Arial, sans-serif;
             border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .glove-icon {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
         }
         #ga1 { left: 20px; }
         #ga2 { right: 20px; }
@@ -26,12 +34,22 @@
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
-<div id="ga1" class="glove-indicator">Left Glove: 100%</div>
-<div id="ga2" class="glove-indicator">Right Glove: 100%</div>
+<img id="ga1Image" src="ga1.png" style="display: none;">
+<img id="ga2Image" src="ga2.png" style="display: none;">
+<div id="ga1" class="glove-indicator">
+    <img src="ga1.png" class="glove-icon">
+    <span>100%</span>
+</div>
+<div id="ga2" class="glove-indicator">
+    <img src="ga2.png" class="glove-icon">
+    <span>100%</span>
+</div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const ga1Image = document.getElementById('ga1Image');
+const ga2Image = document.getElementById('ga2Image');
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -60,14 +78,10 @@ class Vehicle {
         ctx.rotate(this.angle);
         ctx.fillStyle = this.type === 'tank' ? '#355E3B' : '#8B4513';
         ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
-        
-        // Gun barrel
         ctx.fillStyle = '#333';
         ctx.fillRect(0, -5, this.width/2, 10);
-        
         ctx.restore();
 
-        // Health bar
         ctx.fillStyle = 'red';
         ctx.fillRect(this.x - 30, this.y - 40, 60, 5);
         ctx.fillStyle = 'green';
@@ -83,6 +97,7 @@ class Glove {
         this.active = false;
         this.damage = side === 'left' ? 20 : 25;
         this.range = side === 'left' ? 100 : 80;
+        this.image = side === 'left' ? ga1Image : ga2Image;
     }
 
     use() {
@@ -98,6 +113,12 @@ class Glove {
     recharge() {
         if (this.power < 100 && !this.active) {
             this.power += this.rechargeRate;
+        }
+    }
+
+    draw(x, y) {
+        if (this.active) {
+            ctx.drawImage(this.image, x - 16, y - 16, 32, 32);
         }
     }
 }
@@ -156,7 +177,13 @@ class Player {
         
         ctx.restore();
 
-        // Health bar
+        if (this.leftGlove.active) {
+            this.leftGlove.draw(this.x - 30, this.y);
+        }
+        if (this.rightGlove.active) {
+            this.rightGlove.draw(this.x + 30, this.y);
+        }
+
         ctx.fillStyle = 'red';
         ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
         ctx.fillStyle = 'green';
@@ -232,7 +259,6 @@ canvas.addEventListener('click', e => {
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Player movement
     let moveX = 0;
     let moveY = 0;
     if(keys['w'] || keys['ArrowUp']) moveY -= 1;
@@ -240,7 +266,6 @@ function gameLoop() {
     if(keys['a'] || keys['ArrowLeft']) moveX -= 1;
     if(keys['d'] || keys['ArrowRight']) moveX += 1;
 
-    // Normalize diagonal movement
     if (moveX !== 0 && moveY !== 0) {
         moveX *= 0.707;
         moveY *= 0.707;
@@ -258,19 +283,15 @@ function gameLoop() {
         player.y += moveY * currentSpeed;
     }
 
-    // Glove controls
     if (keys['f']) player.leftGlove.use();
     if (keys['g']) player.rightGlove.use();
 
-    // Update glove indicators
-    document.getElementById('ga1').textContent = `Left Glove: ${Math.round(player.leftGlove.power)}%`;
-    document.getElementById('ga2').textContent = `Right Glove: ${Math.round(player.rightGlove.power)}%`;
+    document.querySelector('#ga1 span').textContent = `${Math.round(player.leftGlove.power)}%`;
+    document.querySelector('#ga2 span').textContent = `${Math.round(player.rightGlove.power)}%`;
 
-    // Recharge gloves
     player.leftGlove.recharge();
     player.rightGlove.recharge();
 
-    // Keep player in bounds
     const boundaryCheck = (entity) => {
         const radius = entity.radius || entity.width/2;
         entity.x = Math.max(radius, Math.min(canvas.width - radius, entity.x));
@@ -283,7 +304,6 @@ function gameLoop() {
         boundaryCheck(player);
     }
 
-    // Update and draw bullets
     player.bullets.forEach((bullet, index) => {
         bullet.update();
         bullet.draw();
@@ -308,15 +328,12 @@ function gameLoop() {
         });
     });
 
-    // Draw vehicles
     vehicles.forEach(vehicle => vehicle.draw());
     
-    // Draw player and enemies
     player.draw();
     enemies.forEach(enemy => {
         enemy.draw();
         
-        // Simple enemy AI
         const dx = player.x - enemy.x;
         const dy = player.y - enemy.y;
         const angle = Math.atan2(dy, dx);
@@ -327,7 +344,6 @@ function gameLoop() {
             enemy.shoot(player.x, player.y);
         }
 
-        // Update enemy bullets
         enemy.bullets.forEach((bullet, index) => {
             bullet.update();
             bullet.draw();
