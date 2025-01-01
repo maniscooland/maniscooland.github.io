@@ -213,9 +213,12 @@
                 ctx.arc(0, 0, 40, 0, Math.PI * 2);
                 ctx.fillStyle = this.color;
                 ctx.fill();
-                
-                ctx.drawImage(glove1, 30, -20, 160, 160);
-                ctx.drawImage(glove2, 30, 0, 160, 160);
+
+                ctx.save();
+                ctx.rotate(-this.rotation);
+                ctx.drawImage(glove1, 30, -20, 80, 80);
+                ctx.drawImage(glove2, 30, 0, 80, 80);
+                ctx.restore();
 
                 const weaponImg = window[this.weapon];
                 if (weaponImg) {
@@ -319,8 +322,11 @@
                     ctx.fillStyle = this.driver.color;
                     ctx.fill();
                     
+                    ctx.save();
+                    ctx.rotate(-this.rotation);
                     ctx.drawImage(glove1, 30, -20, 80, 80);
                     ctx.drawImage(glove2, 30, 0, 80, 80);
+                    ctx.restore();
 
                     const weaponImg = window[this.driver.weapon];
                     if (weaponImg) {
@@ -389,10 +395,10 @@
             ctx.restore();
         }
 
-        function getSceneAtPosition(x, y) {
+                function getSceneAtPosition(x, y) {
             const sceneX = Math.floor(x / SCENE_SIZE);
             const sceneY = Math.floor(y / SCENE_SIZE);
-                        const scenes = ['forest', 'desert', 'mountain', 'lake'];
+            const scenes = ['forest', 'desert', 'mountain', 'lake'];
             return scenes[(sceneY * 2 + sceneX) % scenes.length];
         }
 
