@@ -94,15 +94,10 @@ class Vehicle {
         const gloveSize = 24;
         ctx.drawImage(ga1Image, -this.radius - gloveSize, -gloveSize/2, gloveSize, gloveSize);
         ctx.drawImage(ga2Image, this.radius, -gloveSize/2, gloveSize, gloveSize);
-        
-        if (this.leftGlove.active) {
-            ctx.globalAlpha = 0.6;
-            ctx.drawImage(ga1Image, -this.radius - gloveSize*1.5, -gloveSize/2, gloveSize, gloveSize);
-        }
-        if (this.rightGlove.active) {
-            ctx.globalAlpha = 0.6;
-            ctx.drawImage(ga2Image, this.radius + gloveSize*0.5, -gloveSize/2, gloveSize, gloveSize);
-        }
+        ctx.globalAlpha = 0.6;
+        ctx.drawImage(ga1Image, -this.radius - gloveSize*1.5, -gloveSize/2, gloveSize, gloveSize);
+        ctx.globalAlpha = 0.6;
+        ctx.drawImage(ga2Image, this.radius + gloveSize*0.5, -gloveSize/2, gloveSize, gloveSize);
         ctx.globalAlpha = 1;
     }
     
