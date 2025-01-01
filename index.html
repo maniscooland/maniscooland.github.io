@@ -5,11 +5,94 @@
     <style>
         * { margin: 0; padding: 0; overflow: hidden; }
         canvas { display: block; }
+        .menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px;
+            border-radius: 10px;
+            color: white;
+        }
+        .menu input {
+            font-size: 20px;
+            padding: 10px;
+            margin: 10px;
+            width: 200px;
+            border-radius: 5px;
+        }
+        .weapon-select {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px;
+        }
+        .weapon-option {
+            padding: 10px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 5px;
+        }
+        .weapon-option.selected {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+        .weapon-option img {
+            width: 100px;
+            height: 100px;
+        }
+        .start-button {
+            font-size: 24px;
+            padding: 15px 30px;
+            margin: 10px;
+            background: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .start-button:hover {
+            background: #45a049;
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
+    <div id="mainMenu" class="menu">
+        <h1>Massive World Battle</h1>
+        <input type="text" id="username" placeholder="Enter Username" maxlength="15">
+        
+        <div class="weapon-select">
+            <div class="weapon-option selected" onclick="selectWeapon('pistol')">
+                <img src="pistolD.png">
+                <p>Pistol</p>
+            </div>
+            <div class="weapon-option" onclick="selectWeapon('shotgun')">
+                <img src="shotgunD.png">
+                <p>Shotgun</p>
+            </div>
+            <div class="weapon-option" onclick="selectWeapon('rifle')">
+                <img src="rifleD.png">
+                <p>Rifle</p>
+            </div>
+            <div class="weapon-option" onclick="selectWeapon('aShotgun')">
+                <img src="aShotgunD.png">
+                <p>Auto Shotgun</p>
+            </div>
+        </div>
+
+        <button class="start-button" onclick="startGame()">Start Game</button>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
     <script>
+        let selectedWeapon = 'pistol';
+        let playerUsername = '';
+        let gameStarted = false;
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth;
@@ -17,15 +100,25 @@
 
         const glove1 = new Image();
         const glove2 = new Image();
+        const pistol = new Image();
+        const shotgun = new Image();
+        const rifle = new Image();
+        const aShotgun = new Image();
+        const pistolD = new Image();
+        const shotgunD = new Image();
+        const rifleD = new Image();
+        const aShotgunD = new Image();
+
         glove1.src = 'ga1.png';
         glove2.src = 'ga2.png';
-
-        Promise.all([
-            new Promise(resolve => glove1.onload = resolve),
-            new Promise(resolve => glove2.onload = resolve)
-        ]).then(() => {
-            gameLoop();
-        });
+        pistol.src = 'pistol.png';
+        shotgun.src = 'shotgun.png';
+        rifle.src = 'rifle.png';
+        aShotgun.src = 'aShotgun.png';
+        pistolD.src = 'pistolD.png';
+        shotgunD.src = 'shotgunD.png';
+        rifleD.src = 'rifleD.png';
+        aShotgunD.src = 'aShotgunD.png';
 
         const WORLD_WIDTH = 90000;
         const WORLD_HEIGHT = 90000;
@@ -85,6 +178,8 @@
                 this.target = null;
                 this.color = this.getTeamColor();
                 this.isAI = true;
+                this.weapon = 'pistol';
+                this.username = '';
             }
 
             getTeamColor() {
@@ -108,6 +203,12 @@
                 ctx.fillStyle = '#00ff00';
                 ctx.fillRect(-40, -60, 80 * (this.health/100), 10);
                 
+                if (this.username) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(this.username, -30, -70);
+                }
+
                 ctx.beginPath();
                 ctx.arc(0, 0, 40, 0, Math.PI * 2);
                 ctx.fillStyle = this.color;
@@ -115,6 +216,11 @@
                 
                 ctx.drawImage(glove1, 30, -20, 40, 40);
                 ctx.drawImage(glove2, 30, 0, 40, 40);
+
+                const weaponImg = window[this.weapon];
+                if (weaponImg) {
+                    ctx.drawImage(weaponImg, 40, -10, 60, 20);
+                }
                 
                 ctx.restore();
             }
@@ -215,6 +321,11 @@
                     
                     ctx.drawImage(glove1, 30, -20, 40, 40);
                     ctx.drawImage(glove2, 30, 0, 40, 40);
+
+                    const weaponImg = window[this.driver.weapon];
+                    if (weaponImg) {
+                        ctx.drawImage(weaponImg, 40, -10, 60, 20);
+                    }
                     
                     ctx.restore();
                 }
@@ -251,6 +362,25 @@
             }
         }
 
+        function selectWeapon(weapon) {
+            selectedWeapon = weapon;
+            document.querySelectorAll('.weapon-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+        }
+
+        function startGame() {
+            playerUsername = document.getElementById('username').value;
+            if (!playerUsername) {
+                alert('Please enter a username!');
+                return;
+            }
+            document.getElementById('mainMenu').style.display = 'none';
+            gameStarted = true;
+            initGame();
+        }
+
         function drawRotatedRect(x, y, width, height, rotation = 0) {
             ctx.save();
             ctx.translate(x + width/2, y + height/2);
@@ -262,7 +392,7 @@
         function getSceneAtPosition(x, y) {
             const sceneX = Math.floor(x / SCENE_SIZE);
             const sceneY = Math.floor(y / SCENE_SIZE);
-            const scenes = ['forest', 'desert', 'mountain', 'lake'];
+                        const scenes = ['forest', 'desert', 'mountain', 'lake'];
             return scenes[(sceneY * 2 + sceneX) % scenes.length];
         }
 
@@ -346,6 +476,12 @@
             }
         }
 
+        function initGame() {
+            player.weapon = selectedWeapon;
+            player.username = playerUsername;
+            gameLoop();
+        }
+
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
@@ -375,3 +511,4 @@
     </script>
 </body>
 </html>
+
