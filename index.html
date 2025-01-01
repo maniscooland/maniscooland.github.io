@@ -78,35 +78,38 @@ class Vehicle {
     }
 
     draw() {
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.angle);
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        
+        if (!this.vehicle) {
+            // Player body
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.closePath();
+            
+            // Draw gloves in front
+            const gloveScale = 0.4;
+            const gloveWidth = 53 * gloveScale;
+            const gloveHeight = 83 * gloveScale;
+            
+            // Left glove positioned forward
+            ctx.drawImage(ga1Image, this.radius + 5, -gloveHeight/2, gloveWidth, gloveHeight);
+            // Right glove positioned forward
+            ctx.drawImage(ga2Image, this.radius + 5, -gloveHeight/2, gloveWidth, gloveHeight);
+        }
+        
+        ctx.restore();
     
-    if (!this.vehicle) {
-        // Player body
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.closePath();
-        
-        // Draw gloves in front
-        const gloveScale = 0.4; // This maintains aspect ratio while scaling down
-        const gloveWidth = 53 * gloveScale;
-        const gloveHeight = 83 * gloveScale;
-        
-        ctx.drawImage(ga1Image, -gloveWidth/2, this.radius, gloveWidth, gloveHeight);
-        ctx.drawImage(ga2Image, -gloveWidth/2, this.radius, gloveWidth, gloveHeight);
+        // Health bar
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
+        ctx.fillStyle = 'green';
+        ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
     }
-    
-    ctx.restore();
 
-    // Health bar stays the same
-    ctx.fillStyle = 'red';
-    ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
-    ctx.fillStyle = 'green';
-    ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
-}
 
 }
 
