@@ -1,23 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Multiplayer Shooter</title>
+    <title>Battle Game</title>
     <style>
         canvas {
             border: 1px solid black;
             background: #eee;
         }
-        body { margin: 0; overflow: hidden; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+        }
+        .glove-indicator {
+            position: fixed;
+            bottom: 20px;
+            padding: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            font-family: Arial, sans-serif;
+            border-radius: 5px;
+        }
+        #ga1 { left: 20px; }
+        #ga2 { right: 20px; }
     </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
+<div id="ga1" class="glove-indicator">Left Glove: 100%</div>
+<div id="ga2" class="glove-indicator">Right Glove: 100%</div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Set canvas to full window size
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -25,46 +40,76 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// Player class
-class Player {
-    constructor(x, y, color) {
+class Vehicle {
+    constructor(x, y, type) {
         this.x = x;
         this.y = y;
-        this.radius = 20;
-        this.color = color;
-        this.speed = 5;
-        this.bullets = [];
-        this.health = 100;
+        this.type = type;
+        this.width = type === 'tank' ? 60 : 40;
+        this.height = type === 'tank' ? 40 : 30;
+        this.speed = type === 'tank' ? 3 : 7;
+        this.health = type === 'tank' ? 200 : 100;
+        this.occupied = false;
+        this.angle = 0;
+        this.bulletDamage = type === 'tank' ? 30 : 15;
     }
 
     draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.closePath();
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = this.type === 'tank' ? '#355E3B' : '#8B4513';
+        ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
         
+        // Gun barrel
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, -5, this.width/2, 10);
+        
+        ctx.restore();
+
         // Health bar
         ctx.fillStyle = 'red';
-        ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
+        ctx.fillRect(this.x - 30, this.y - 40, 60, 5);
         ctx.fillStyle = 'green';
-        ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
-    }
-
-    shoot(targetX, targetY) {
-        const angle = Math.atan2(targetY - this.y, targetX - this.x);
-        this.bullets.push(new Bullet(this.x, this.y, angle));
+        ctx.fillRect(this.x - 30, this.y - 40, (this.health/(this.type === 'tank' ? 200 : 100)) * 60, 5);
     }
 }
 
-// Bullet class
+class Glove {
+    constructor(side) {
+        this.side = side;
+        this.power = 100;
+        this.rechargeRate = 0.5;
+        this.active = false;
+        this.damage = side === 'left' ? 20 : 25;
+        this.range = side === 'left' ? 100 : 80;
+    }
+
+    use() {
+        if (this.power > 0) {
+            this.power -= 2;
+            this.active = true;
+            return true;
+        }
+        this.active = false;
+        return false;
+    }
+
+    recharge() {
+        if (this.power < 100 && !this.active) {
+            this.power += this.rechargeRate;
+        }
+    }
+}
+
 class Bullet {
-    constructor(x, y, angle) {
+    constructor(x, y, angle, damage = 10, speed = 10) {
         this.x = x;
         this.y = y;
-        this.speed = 10;
+        this.speed = speed;
         this.angle = angle;
         this.radius = 5;
+        this.damage = damage;
     }
 
     update() {
@@ -81,53 +126,179 @@ class Bullet {
     }
 }
 
-// Game setup
+class Player {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.radius = 20;
+        this.color = color;
+        this.speed = 5;
+        this.bullets = [];
+        this.health = 100;
+        this.leftGlove = new Glove('left');
+        this.rightGlove = new Glove('right');
+        this.vehicle = null;
+        this.angle = 0;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        
+        if (!this.vehicle) {
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+        
+        ctx.restore();
+
+        // Health bar
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
+        ctx.fillStyle = 'green';
+        ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
+    }
+
+    shoot(targetX, targetY) {
+        const angle = Math.atan2(targetY - this.y, targetX - this.x);
+        const damage = this.vehicle ? this.vehicle.bulletDamage : 10;
+        const bulletSpeed = this.vehicle ? (this.vehicle.type === 'tank' ? 15 : 12) : 10;
+        this.bullets.push(new Bullet(this.x, this.y, angle, damage, bulletSpeed));
+    }
+
+    enterVehicle(vehicle) {
+        if (!vehicle.occupied && !this.vehicle) {
+            this.vehicle = vehicle;
+            vehicle.occupied = true;
+        }
+    }
+
+    exitVehicle() {
+        if (this.vehicle) {
+            this.vehicle.occupied = false;
+            this.x = this.vehicle.x + this.vehicle.width;
+            this.y = this.vehicle.y;
+            this.vehicle = null;
+        }
+    }
+}
+
 const player = new Player(canvas.width/2, canvas.height/2, 'blue');
 const enemies = [
     new Player(100, 100, 'red'),
     new Player(canvas.width-100, canvas.height-100, 'red')
 ];
+const vehicles = [
+    new Vehicle(200, 200, 'tank'),
+    new Vehicle(400, 400, 'jeep'),
+    new Vehicle(600, 300, 'tank')
+];
 
-// Input handling
 const keys = {};
-window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (e.key === 'e') {
+        vehicles.forEach(vehicle => {
+            const dx = player.x - vehicle.x;
+            const dy = player.y - vehicle.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 50) {
+                player.enterVehicle(vehicle);
+            }
+        });
+    }
+    if (e.key === 'q') {
+        player.exitVehicle();
+    }
+});
 window.addEventListener('keyup', e => keys[e.key] = false);
+
+canvas.addEventListener('mousemove', e => {
+    const angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+    player.angle = angle;
+    if (player.vehicle) {
+        player.vehicle.angle = angle;
+    }
+});
+
 canvas.addEventListener('click', e => {
     player.shoot(e.clientX, e.clientY);
 });
 
-// Game loop
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Player movement
-    if(keys['w'] || keys['ArrowUp']) player.y -= player.speed;
-    if(keys['s'] || keys['ArrowDown']) player.y += player.speed;
-    if(keys['a'] || keys['ArrowLeft']) player.x -= player.speed;
-    if(keys['d'] || keys['ArrowRight']) player.x += player.speed;
+    let moveX = 0;
+    let moveY = 0;
+    if(keys['w'] || keys['ArrowUp']) moveY -= 1;
+    if(keys['s'] || keys['ArrowDown']) moveY += 1;
+    if(keys['a'] || keys['ArrowLeft']) moveX -= 1;
+    if(keys['d'] || keys['ArrowRight']) moveX += 1;
+
+    // Normalize diagonal movement
+    if (moveX !== 0 && moveY !== 0) {
+        moveX *= 0.707;
+        moveY *= 0.707;
+    }
+
+    const currentSpeed = player.vehicle ? player.vehicle.speed : player.speed;
+    
+    if (player.vehicle) {
+        player.vehicle.x += moveX * currentSpeed;
+        player.vehicle.y += moveY * currentSpeed;
+        player.x = player.vehicle.x;
+        player.y = player.vehicle.y;
+    } else {
+        player.x += moveX * currentSpeed;
+        player.y += moveY * currentSpeed;
+    }
+
+    // Glove controls
+    if (keys['f']) player.leftGlove.use();
+    if (keys['g']) player.rightGlove.use();
+
+    // Update glove indicators
+    document.getElementById('ga1').textContent = `Left Glove: ${Math.round(player.leftGlove.power)}%`;
+    document.getElementById('ga2').textContent = `Right Glove: ${Math.round(player.rightGlove.power)}%`;
+
+    // Recharge gloves
+    player.leftGlove.recharge();
+    player.rightGlove.recharge();
 
     // Keep player in bounds
-    player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-    player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+    const boundaryCheck = (entity) => {
+        const radius = entity.radius || entity.width/2;
+        entity.x = Math.max(radius, Math.min(canvas.width - radius, entity.x));
+        entity.y = Math.max(radius, Math.min(canvas.height - radius, entity.y));
+    };
+
+    if (player.vehicle) {
+        boundaryCheck(player.vehicle);
+    } else {
+        boundaryCheck(player);
+    }
 
     // Update and draw bullets
     player.bullets.forEach((bullet, index) => {
         bullet.update();
         bullet.draw();
 
-        // Remove bullets that are off screen
         if(bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
             player.bullets.splice(index, 1);
         }
 
-        // Check bullet collisions with enemies
         enemies.forEach((enemy, enemyIndex) => {
             const dx = bullet.x - enemy.x;
             const dy = bullet.y - enemy.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if(distance < enemy.radius + bullet.radius) {
-                enemy.health -= 10;
+                enemy.health -= bullet.damage;
                 player.bullets.splice(index, 1);
                 
                 if(enemy.health <= 0) {
@@ -137,12 +308,15 @@ function gameLoop() {
         });
     });
 
+    // Draw vehicles
+    vehicles.forEach(vehicle => vehicle.draw());
+    
     // Draw player and enemies
     player.draw();
-    enemies.forEach(enemy => enemy.draw());
-
-    // Simple enemy AI
     enemies.forEach(enemy => {
+        enemy.draw();
+        
+        // Simple enemy AI
         const dx = player.x - enemy.x;
         const dy = player.y - enemy.y;
         const angle = Math.atan2(dy, dx);
@@ -152,21 +326,25 @@ function gameLoop() {
         if(Math.random() < 0.02) {
             enemy.shoot(player.x, player.y);
         }
-    });
 
-    // Update and draw enemy bullets
-    enemies.forEach(enemy => {
+        // Update enemy bullets
         enemy.bullets.forEach((bullet, index) => {
             bullet.update();
             bullet.draw();
 
-            // Check collision with player
             const dx = bullet.x - player.x;
             const dy = bullet.y - player.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if(distance < player.radius + bullet.radius) {
-                player.health -= 5;
+                if (player.vehicle) {
+                    player.vehicle.health -= bullet.damage/2;
+                    if (player.vehicle.health <= 0) {
+                        player.exitVehicle();
+                    }
+                } else {
+                    player.health -= bullet.damage;
+                }
                 enemy.bullets.splice(index, 1);
                 
                 if(player.health <= 0) {
