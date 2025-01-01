@@ -10,6 +10,7 @@
         body { 
             margin: 0; 
             overflow: hidden; 
+            cursor: crosshair;
         }
         .glove-indicator {
             position: fixed;
@@ -22,6 +23,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            z-index: 1000;
         }
         .glove-icon {
             width: 32px;
@@ -51,6 +53,9 @@ const ctx = canvas.getContext('2d');
 const ga1Image = document.getElementById('ga1Image');
 const ga2Image = document.getElementById('ga2Image');
 
+let mouseX = 0;
+let mouseY = 0;
+
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -76,12 +81,18 @@ class Vehicle {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
+        
+        // Vehicle body
         ctx.fillStyle = this.type === 'tank' ? '#355E3B' : '#8B4513';
         ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+        
+        // Gun barrel
         ctx.fillStyle = '#333';
         ctx.fillRect(0, -5, this.width/2, 10);
+        
         ctx.restore();
 
+        // Health bar
         ctx.fillStyle = 'red';
         ctx.fillRect(this.x - 30, this.y - 40, 60, 5);
         ctx.fillStyle = 'green';
@@ -116,9 +127,13 @@ class Glove {
         }
     }
 
-    draw(x, y) {
+    draw(x, y, angle) {
         if (this.active) {
-            ctx.drawImage(this.image, x - 16, y - 16, 32, 32);
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.drawImage(this.image, this.side === 'left' ? -40 : 20, -16, 32, 32);
+            ctx.restore();
         }
     }
 }
@@ -168,33 +183,46 @@ class Player {
         ctx.rotate(this.angle);
         
         if (!this.vehicle) {
+            // Player body
             ctx.beginPath();
             ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
             ctx.fillStyle = this.color;
             ctx.fill();
             ctx.closePath();
+            
+            // Direction indicator
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(this.radius + 10, 0);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.stroke();
         }
         
         ctx.restore();
 
-        if (this.leftGlove.active) {
-            this.leftGlove.draw(this.x - 30, this.y);
-        }
-        if (this.rightGlove.active) {
-            this.rightGlove.draw(this.x + 30, this.y);
-        }
+        // Draw gloves
+        this.leftGlove.draw(this.x, this.y, this.angle);
+        this.rightGlove.draw(this.x, this.y, this.angle);
 
+        // Health bar
         ctx.fillStyle = 'red';
         ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
         ctx.fillStyle = 'green';
         ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
     }
 
-    shoot(targetX, targetY) {
-        const angle = Math.atan2(targetY - this.y, targetX - this.x);
+    updateAngle() {
+        this.angle = Math.atan2(mouseY - this.y, mouseX - this.x);
+        if (this.vehicle) {
+            this.vehicle.angle = this.angle;
+        }
+    }
+
+    shoot() {
         const damage = this.vehicle ? this.vehicle.bulletDamage : 10;
         const bulletSpeed = this.vehicle ? (this.vehicle.type === 'tank' ? 15 : 12) : 10;
-        this.bullets.push(new Bullet(this.x, this.y, angle, damage, bulletSpeed));
+        this.bullets.push(new Bullet(this.x, this.y, this.angle, damage, bulletSpeed));
     }
 
     enterVehicle(vehicle) {
@@ -245,19 +273,18 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => keys[e.key] = false);
 
 canvas.addEventListener('mousemove', e => {
-    const angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
-    player.angle = angle;
-    if (player.vehicle) {
-        player.vehicle.angle = angle;
-    }
+    mouseX = e.clientX;
+    mouseY = e.clientY;
 });
 
 canvas.addEventListener('click', e => {
-    player.shoot(e.clientX, e.clientY);
+    player.shoot();
 });
 
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    player.updateAngle();
     
     let moveX = 0;
     let moveY = 0;
@@ -339,9 +366,10 @@ function gameLoop() {
         const angle = Math.atan2(dy, dx);
         enemy.x += Math.cos(angle) * (enemy.speed * 0.5);
         enemy.y += Math.sin(angle) * (enemy.speed * 0.5);
+        enemy.angle = angle;
         
         if(Math.random() < 0.02) {
-            enemy.shoot(player.x, player.y);
+            enemy.shoot();
         }
 
         enemy.bullets.forEach((bullet, index) => {
