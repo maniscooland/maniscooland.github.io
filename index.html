@@ -64,18 +64,17 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 class Vehicle {
-     constructor(x, y, color) {
+    constructor(x, y, type) {
         this.x = x;
         this.y = y;
-        this.radius = 20;
-        this.color = color;
-        this.speed = 5;
-        this.bullets = [];
-        this.health = 100;
-        this.leftGlove = new Glove('left');
-        this.rightGlove = new Glove('right');
-        this.vehicle = null;
+        this.type = type;
+        this.width = type === 'tank' ? 60 : 40;
+        this.height = type === 'tank' ? 40 : 30;
+        this.speed = type === 'tank' ? 3 : 7;
+        this.health = type === 'tank' ? 200 : 100;
+        this.occupied = false;
         this.angle = 0;
+        this.bulletDamage = type === 'tank' ? 30 : 15;
     }
 
     draw() {
@@ -83,31 +82,19 @@ class Vehicle {
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
         
-        if (!this.vehicle) {
-            // Player body
-            ctx.beginPath();
-            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = this.color;
-            ctx.fill();
-            ctx.closePath();
-            
-            // Draw gloves as hands
-            const gloveSize = 24;
-            // Left glove
-            ctx.drawImage(ga1Image, -this.radius - gloveSize, -gloveSize/2, gloveSize, gloveSize);
-            // Right glove
-            ctx.drawImage(ga2Image, this.radius, -gloveSize/2, gloveSize, gloveSize);
-        }
+        ctx.fillStyle = this.type === 'tank' ? '#355E3B' : '#8B4513';
+        ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+        
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, -5, this.width/2, 10);
         
         ctx.restore();
 
-        // Health bar
         ctx.fillStyle = 'red';
-        ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
+        ctx.fillRect(this.x - 30, this.y - 40, 60, 5);
         ctx.fillStyle = 'green';
-        ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
+        ctx.fillRect(this.x - 30, this.y - 40, (this.health/(this.type === 'tank' ? 200 : 100)) * 60, 5);
     }
-
 }
 
 class Glove {
@@ -115,35 +102,14 @@ class Glove {
         this.side = side;
         this.power = 100;
         this.rechargeRate = 0.5;
-        this.active = false;
         this.damage = side === 'left' ? 20 : 25;
         this.range = side === 'left' ? 100 : 80;
         this.image = side === 'left' ? ga1Image : ga2Image;
     }
 
-    use() {
-        if (this.power > 0) {
-            this.power -= 2;
-            this.active = true;
-            return true;
-        }
-        this.active = false;
-        return false;
-    }
-
     recharge() {
-        if (this.power < 100 && !this.active) {
+        if (this.power < 100) {
             this.power += this.rechargeRate;
-        }
-    }
-
-    draw(x, y, angle) {
-        if (this.active) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(angle);
-            ctx.drawImage(this.image, this.side === 'left' ? -40 : 20, -16, 32, 32);
-            ctx.restore();
         }
     }
 }
@@ -193,29 +159,19 @@ class Player {
         ctx.rotate(this.angle);
         
         if (!this.vehicle) {
-            // Player body
             ctx.beginPath();
             ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
             ctx.fillStyle = this.color;
             ctx.fill();
             ctx.closePath();
             
-            // Direction indicator
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(this.radius + 10, 0);
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 3;
-            ctx.stroke();
+            const gloveSize = 24;
+            ctx.drawImage(ga1Image, -this.radius - gloveSize, -gloveSize/2, gloveSize, gloveSize);
+            ctx.drawImage(ga2Image, this.radius, -gloveSize/2, gloveSize, gloveSize);
         }
         
         ctx.restore();
 
-        // Draw gloves
-        this.leftGlove.draw(this.x, this.y, this.angle);
-        this.rightGlove.draw(this.x, this.y, this.angle);
-
-        // Health bar
         ctx.fillStyle = 'red';
         ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
         ctx.fillStyle = 'green';
@@ -319,9 +275,6 @@ function gameLoop() {
         player.x += moveX * currentSpeed;
         player.y += moveY * currentSpeed;
     }
-
-    if (keys['f']) player.leftGlove.use();
-    if (keys['g']) player.rightGlove.use();
 
     document.querySelector('#ga1 span').textContent = `${Math.round(player.leftGlove.power)}%`;
     document.querySelector('#ga2 span').textContent = `${Math.round(player.rightGlove.power)}%`;
