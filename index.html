@@ -64,51 +64,49 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 class Vehicle {
-    constructor(x, y, type) {
+     constructor(x, y, color) {
         this.x = x;
         this.y = y;
-        this.type = type;
-        this.width = type === 'tank' ? 60 : 40;
-        this.height = type === 'tank' ? 40 : 30;
-        this.speed = type === 'tank' ? 3 : 7;
-        this.health = type === 'tank' ? 200 : 100;
-        this.occupied = false;
+        this.radius = 20;
+        this.color = color;
+        this.speed = 5;
+        this.bullets = [];
+        this.health = 100;
+        this.leftGlove = new Glove('left');
+        this.rightGlove = new Glove('right');
+        this.vehicle = null;
         this.angle = 0;
-        this.bulletDamage = type === 'tank' ? 30 : 15;
     }
 
     draw() {
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.angle);
-    
-    if (!this.vehicle) {
-        // Player body
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.closePath();
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
         
-        // Draw gloves as hands
-        const gloveSize = 24;
-        ctx.drawImage(ga1Image, -this.radius - gloveSize, -gloveSize/2, gloveSize, gloveSize);
-        ctx.drawImage(ga2Image, this.radius, -gloveSize/2, gloveSize, gloveSize);
-        ctx.globalAlpha = 0.6;
-        ctx.drawImage(ga1Image, -this.radius - gloveSize*1.5, -gloveSize/2, gloveSize, gloveSize);
-        ctx.globalAlpha = 0.6;
-        ctx.drawImage(ga2Image, this.radius + gloveSize*0.5, -gloveSize/2, gloveSize, gloveSize);
-        ctx.globalAlpha = 1;
-    }
-    
-    ctx.restore();
+        if (!this.vehicle) {
+            // Player body
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.closePath();
+            
+            // Draw gloves as hands
+            const gloveSize = 24;
+            // Left glove
+            ctx.drawImage(ga1Image, -this.radius - gloveSize, -gloveSize/2, gloveSize, gloveSize);
+            // Right glove
+            ctx.drawImage(ga2Image, this.radius, -gloveSize/2, gloveSize, gloveSize);
+        }
+        
+        ctx.restore();
 
-    // Health bar
-    ctx.fillStyle = 'red';
-    ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
-    ctx.fillStyle = 'green';
-    ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
-}
+        // Health bar
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x - 25, this.y - 30, 50, 5);
+        ctx.fillStyle = 'green';
+        ctx.fillRect(this.x - 25, this.y - 30, this.health / 2, 5);
+    }
 
 }
 
