@@ -45,10 +45,10 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const WORLD_SIZE = 90000;
-        const ROAD_WIDTH = 1000;
+        const WORLD_SIZE = 90000; // World size
+        const ROAD_WIDTH = 1000;   // Width of the dirt road
 
-        // Camera
+        // Camera object to follow the player
         const camera = {
             x: 0,
             y: 0,
@@ -56,7 +56,7 @@
             height: canvas.height
         };
 
-        // Player
+        // Player object
         const player = {
             x: WORLD_SIZE / 2,
             y: WORLD_SIZE / 2,
@@ -67,6 +67,7 @@
             deceleration: 0.9,
             angle: 0,
             inVehicle: null,
+            
             draw() {
                 ctx.save();
                 ctx.translate(this.x - camera.x, this.y - camera.y);
@@ -78,28 +79,23 @@
                 ctx.fillStyle = 'blue';
                 ctx.fill();
                 
-                // Hand (only on the left side)
+                // Hand aligned with cursor
                 ctx.beginPath();
-                ctx.moveTo(-20, 0);
-                ctx.lineTo(-40, 0);
+                ctx.moveTo(-20, 0); // Hand position
+                ctx.lineTo(-40 * Math.cos(this.angle), -40 * Math.sin(this.angle));
                 ctx.strokeStyle = 'blue';
                 ctx.lineWidth = 5;
                 ctx.stroke();
                 
                 ctx.restore();
             },
+            
             update() {
                 if (this.inVehicle) {
                     // Update vehicle position when driving
-                    if (keys['w']) {
-                        this.inVehicle.vy -= this.inVehicle.acceleration;
-                    }
-                    if (keys['s']) {
-                        this.inVehicle.vy += this.inVehicle.acceleration;
-                    }
                     this.inVehicle.update();
-                    this.x = this.inVehicle.x;
-                    this.y = this.inVehicle.y;
+                    this.x = this.inVehicle.x; // Sync player position to vehicle
+                    this.y = this.inVehicle.y; 
                 } else {
                     // Normal player movement
                     if (keys['w']) this.vy -= this.acceleration;
@@ -107,9 +103,11 @@
                     if (keys['a']) this.vx -= this.acceleration;
                     if (keys['d']) this.vx += this.acceleration;
 
+                    // Apply deceleration
                     this.vx *= this.deceleration;
                     this.vy *= this.deceleration;
 
+                    // Limit speed
                     const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                     if (speed > this.maxSpeed) {
                         const ratio = this.maxSpeed / speed;
@@ -117,173 +115,203 @@
                         this.vy *= ratio;
                     }
 
+                    // Update position
                     this.x += this.vx;
                     this.y += this.vy;
 
-                    this.x = Math.max(0, Math.min(WORLD_SIZE, this.x));
-                    this.y = Math.max(0, Math.min(WORLD_SIZE, this.y));
+                    // Keep player within world bounds
+                    this.x = Math.max(20, Math.min(WORLD_SIZE - 20, this.x));
+                    this.y = Math.max(20, Math.min(WORLD_SIZE - 20, this.y));
+                    
+                    // Update camera position to follow the player
+                    camera.x = this.x - canvas.width / 2;
+                    camera.y = this.y - canvas.height / 2;
                 }
-
-                // Update camera position
-                camera.x = this.x - canvas.width / 2;
-                camera.y = this.y - canvas.height / 2;
             }
         };
 
-        // Vehicles
+        // Vehicle class definition
         class Vehicle {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
                 this.vx = 0;
                 this.vy = 0;
-                this.width = 200;
-                this.height = 120;
-                this.wheelAngle = 0;
-                this.acceleration = 0.2;
-                this.deceleration = 0.95;
-                this.maxSpeed = 8;
+                this.width = 200; 
+                this.height = 120; 
+                this.wheelAngle = 0; 
+                this.acceleration = 0.2; 
+                this.deceleration = 0.95; 
+                this.maxSpeed = 8; 
             }
 
             draw() {
                 ctx.save();
                 ctx.translate(this.x - camera.x, this.y - camera.y);
 
-                // Body
+                // Body of the vehicle
                 ctx.fillStyle = 'gray';
-                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
 
-                // Wheels
-                ctx.fillStyle = 'black';
-                const wheelSize = 30;
+                // Wheels of the vehicle
+                const wheelSize = 30; 
                 const wheelPositions = [
-                    { x: -this.width/2 + 20, y: -this.height/2 },
-                    { x: this.width/2 - wheelSize - 20, y: -this.height/2 },
-                    { x: -this.width/2 + 20, y: this.height/2 - wheelSize },
-                    { x: this.width/2 - wheelSize - 20, y: this.height/2 - wheelSize }
+                    { x: -this.width / 2 + wheelSize / 2, y: -this.height / 2 }, 
+                    { x: this.width / 2 - wheelSize / 2, y: -this.height / 2 }, 
+                    { x: -this.width / 2 + wheelSize / 2, y: this.height / 2 - wheelSize }, 
+                    { x: this.width / 2 - wheelSize / 2, y: this.height / 2 - wheelSize } 
                 ];
 
-                wheelPositions.forEach((pos, index) => {
-                    ctx.save();
-                    ctx.translate(pos.x + wheelSize / 2, pos.y + wheelSize / 2);
-                    if (index < 2) {  // Front wheels
-                        ctx.rotate(this.wheelAngle);
-                    }
-                    ctx.fillRect(-wheelSize / 2, -wheelSize / 2, wheelSize, wheelSize);
-                    ctx.restore();
+                wheelPositions.forEach((pos) => {
+                    ctx.fillStyle = 'black';
+                    ctx.fillRect(pos.x - wheelSize / 2, pos.y - wheelSize / 2, wheelSize, wheelSize);
                 });
-
-                // Seats
-                ctx.fillStyle = 'lightblue';
-                ctx.fillRect(-20, -20, 40, 40);
-                ctx.fillRect(20, -20, 40, 40);
 
                 ctx.restore();
             }
 
             update() {
-                this.vx *= this.deceleration;
-                this.vy *= this.deceleration;
-
-                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                if (speed > this.maxSpeed) {
-                    const ratio = this.maxSpeed / speed;
-                    this.vx *= ratio;
-                    this.vy *= ratio;
-                }
-
-                this.x += this.vx;
-                this.y += this.vy;
-
-                this.x = Math.max(0, Math.min(WORLD_SIZE, this.x));
-                this.y = Math.max(0, Math.min(WORLD_SIZE, this.y));
-            }
-        }
-
-        const vehicles = [
-            new Vehicle(WORLD_SIZE / 2 - 300, WORLD_SIZE / 2),
-            new Vehicle(WORLD_SIZE / 2 + 300, WORLD_SIZE / 2)
-        ];
-
-        // Input handling
-        const keys = {};
-        document.addEventListener('keydown', (e) => {
-            keys[e.key] = true;
-            updateKeyDisplay(e.key, true);
-            if (e.key === 'e' || e.key === 'E') {
-                toggleVehicle();
-            }
-        });
-        document.addEventListener('keyup', (e) => {
-            keys[e.key] = false;
-            updateKeyDisplay(e.key, false);
-        });
-        
-        function updateKeyDisplay(key, isActive) {
-            const keyElement = document.getElementById(`key-${key}`);
-            if (keyElement) {
-                if (isActive) {
-                    keyElement.classList.add('active');
-                } else {
-                    keyElement.classList.remove('active');
-                }
-            }
-        }
-
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left + camera.x;
-            const mouseY = e.clientY - rect.top + camera.y;
-            player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-        });
-
-        function toggleVehicle() {
-            if (player.inVehicle) {
-                player.inVehicle = null;
-            } else {
-                for (let vehicle of vehicles) {
-                    const dx = player.x - vehicle.x;
-                    const dy = player.y - vehicle.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < 100) {
-                        player.inVehicle = vehicle;
-                        break;
+                if (keys['w']) {
+                    // Accelerate forward
+                    if (this.vy > -this.maxSpeed) {
+                        this.vy -= this.acceleration; 
                     }
                 }
-            }
-        }
+                
+                if (keys['s']) {
+                    // Accelerate backward
+                    if (this.vy < this.maxSpeed) {
+                        this.vy += this.acceleration; 
+                    }
+                }
 
-        function drawRoad() {
-            ctx.fillStyle = '#8B4513';  // Brown color for dirt road
-            ctx.fillRect(WORLD_SIZE / 2 - ROAD_WIDTH / 2 - camera.x, 0 - camera.y, ROAD_WIDTH, WORLD_SIZE);
-            ctx.fillRect(0 - camera.x, WORLD_SIZE / 2 - ROAD_WIDTH / 2 - camera.y, WORLD_SIZE, ROAD_WIDTH);
-        }
+                // Apply deceleration to the vehicle's velocity
+                if (!keys['w'] && !keys['s']) {
+                    if (this.vy > 0) {
+                        this.vy *= this.deceleration; 
+                    } else if (this.vy < 0) {
+                        this.vy *= -this.deceleration; 
+                    }
+                    
+                    if (Math.abs(this.vy) < 1) { 
+                        this.vy = 0; 
+                    }
+                }
 
-        function update() {
-            player.update();
-        }
+                // Update vehicle position based on velocity
+                if (Math.abs(this.vy) > .1) { 
+                  const angleRad = Math.atan2(this.vy, Math.abs(this.vx));  
+                  if (this.vx > .1 || keys['d']) {  
+                      angleRad += Math.PI/6;  
+                  } else if (this.vx < -.1 || keys['a']) {  
+                      angleRad -= Math.PI/6;  
+                  }  
+                  const speedX = Math.cos(angleRad) * Math.abs(this.vy);  
+                  const speedY = Math.sin(angleRad) * Math.abs(this.vy);  
+                  if (Math.abs(speedX) > .1 || Math.abs(speedY) > .1) {  
+                      speedX *= .5;  
+                      speedY *= .5;  
+                  }  
+                  player.x += speedX;  
+                  player.y += speedY;  
+              }
 
-        function draw() {
-            ctx.fillStyle = '#90EE90';  // Light green for grass
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+              // Keep vehicle within world bounds
+              if (this.x < WORLD_SIZE && 
+                  ((this.x + player.width/2) > WORLD_SIZE)) {  
+                 player.x -= speedX;  
+                 player.y -= speedY;  
+              }   
+              if (this.y < WORLD_SIZE && ((this.y + player.height/2) > WORLD_SIZE)) {  
+                 player.x -= speedX;  
+                 player.y -= speedY;  
+              }   
+          }
+      }
 
-            ctx.save();
-            ctx.translate(-camera.x, -camera.y);
+      const vehicles = [
+          new Vehicle(WORLD_SIZE / 2 -300 , WORLD_SIZE / 2),
+          new Vehicle(WORLD_SIZE / 2 +300 , WORLD_SIZE / 2)
+      ];
 
-            drawRoad();
-            vehicles.forEach(v => v.draw());
-            player.draw();
+      // Input handling for keys and vehicle toggle
+      const keys = {};
+      document.addEventListener('keydown', (e) => {
+          keys[e.key] = true;
 
-            ctx.restore();
-        }
+          if (e.key.toLowerCase() === 'e') { 
+              toggleVehicle(); 
+          }
 
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
+          updateKeyDisplay(e.key, true);
+      });
 
-        gameLoop();
+      document.addEventListener('keyup', (e) => {
+          keys[e.key] = false;
+          updateKeyDisplay(e.key, false);
+      });
+
+      function updateKeyDisplay(key, isActive) {
+          const keyElement = document.getElementById(`key-${key}`);
+          if (keyElement) {
+              keyElement.classList.toggle('active', isActive);
+          }
+      }
+
+      canvas.addEventListener('mousemove', (e) => {
+          const rect = canvas.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left + camera.x;
+          const mouseY = e.clientY - rect.top + camera.y;
+
+          player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+      });
+
+      function toggleVehicle() {
+          if (player.inVehicle) {
+              player.inVehicle = null; 
+          } else {
+              for (let vehicle of vehicles) {
+                  const dx = player.x - vehicle.x;
+                  const dy = player.y - vehicle.y;
+                  const distance = Math.sqrt(dx * dx + dy * dy);
+                  if (distance < vehicle.width / 2 + player.width / 2) { 
+                      player.inVehicle = vehicle; 
+                      break; 
+                  }
+              }
+          }
+      }
+
+      function drawRoad() {
+          ctx.fillStyle = '#8B4513';  
+          ctx.fillRect(WORLD_SIZE / 2 - ROAD_WIDTH / 2 - camera.x, 
+                       camera.y , ROAD_WIDTH , WORLD_SIZE); 
+
+          ctx.fillRect(camera.x , WORLD_SIZE / 2 - ROAD_WIDTH / 2 , WORLD_SIZE , ROAD_WIDTH);   
+      }
+
+      function update() {
+          player.update();   
+      }
+
+      function draw() {
+          ctx.clearRect(0,0 ,canvas.width ,canvas.height); 
+
+          drawRoad();   
+
+          vehicles.forEach(v => v.draw());   
+          
+          player.draw();   
+      }
+
+      function gameLoop() {   
+          update();   
+          draw();   
+          
+          requestAnimationFrame(gameLoop);   
+      }
+
+      gameLoop();   
     </script>
 </body>
 </html>
