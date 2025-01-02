@@ -3,13 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Dudes IO-like Game with Vehicles</title>
+    <title>Battle Dudes IO-like Game with Smooth Movement</title>
     <style>
         canvas { border: 1px solid black; }
+        #keys {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 50px);
+            grid-gap: 5px;
+        }
+        .key {
+            width: 50px;
+            height: 50px;
+            background-color: #ddd;
+            border: 2px solid #999;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .key.active {
+            background-color: #aaa;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="keys">
+        <div></div>
+        <div class="key" id="key-w">W</div>
+        <div></div>
+        <div class="key" id="key-a">A</div>
+        <div class="key" id="key-s">S</div>
+        <div class="key" id="key-d">D</div>
+    </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -18,7 +49,11 @@
         const player = {
             x: 400,
             y: 300,
-            speed: 5,
+            vx: 0,
+            vy: 0,
+            maxSpeed: 5,
+            acceleration: 0.5,
+            deceleration: 0.9,
             angle: 0,
             draw() {
                 ctx.save();
@@ -41,6 +76,33 @@
                 ctx.stroke();
                 
                 ctx.restore();
+            },
+            update() {
+                // Apply acceleration based on key presses
+                if (keys['w']) this.vy -= this.acceleration;
+                if (keys['s']) this.vy += this.acceleration;
+                if (keys['a']) this.vx -= this.acceleration;
+                if (keys['d']) this.vx += this.acceleration;
+
+                // Apply deceleration
+                this.vx *= this.deceleration;
+                this.vy *= this.deceleration;
+
+                // Limit speed
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > this.maxSpeed) {
+                    const ratio = this.maxSpeed / speed;
+                    this.vx *= ratio;
+                    this.vy *= ratio;
+                }
+
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Keep player within canvas bounds
+                this.x = Math.max(20, Math.min(canvas.width - 20, this.x));
+                this.y = Math.max(20, Math.min(canvas.height - 20, this.y));
             }
         };
 
@@ -127,9 +189,26 @@
 
         // Input handling
         const keys = {};
-        document.addEventListener('keydown', (e) => keys[e.key] = true);
-        document.addEventListener('keyup', (e) => keys[e.key] = false);
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            updateKeyDisplay(e.key, true);
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+            updateKeyDisplay(e.key, false);
+        });
         
+        function updateKeyDisplay(key, isActive) {
+            const keyElement = document.getElementById(`key-${key}`);
+            if (keyElement) {
+                if (isActive) {
+                    keyElement.classList.add('active');
+                } else {
+                    keyElement.classList.remove('active');
+                }
+            }
+        }
+
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -138,11 +217,7 @@
         });
 
         function update() {
-            if (keys['w']) player.y -= player.speed;
-            if (keys['s']) player.y += player.speed;
-            if (keys['a']) player.x -= player.speed;
-            if (keys['d']) player.x += player.speed;
-
+            player.update();
             aiPlayers.forEach(ai => ai.update());
 
             // Update vehicle wheel angles
