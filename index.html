@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Dudes IO-like Game with Smooth Movement</title>
+    <title>Battle Dudes IO-like Game with Vehicles and Large Map</title>
     <style>
         canvas { border: 1px solid black; }
         #keys {
-            position: absolute;
+            position: fixed;
             bottom: 20px;
             left: 20px;
             display: grid;
@@ -45,19 +45,31 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        const WORLD_SIZE = 90000;
+        const ROAD_WIDTH = 1000;
+
+        // Camera
+        const camera = {
+            x: 0,
+            y: 0,
+            width: canvas.width,
+            height: canvas.height
+        };
+
         // Player
         const player = {
-            x: 400,
-            y: 300,
+            x: WORLD_SIZE / 2,
+            y: WORLD_SIZE / 2,
             vx: 0,
             vy: 0,
             maxSpeed: 5,
             acceleration: 0.5,
             deceleration: 0.9,
             angle: 0,
+            inVehicle: null,
             draw() {
                 ctx.save();
-                ctx.translate(this.x, this.y);
+                ctx.translate(this.x - camera.x, this.y - camera.y);
                 ctx.rotate(this.angle);
                 
                 // Body
@@ -66,29 +78,113 @@
                 ctx.fillStyle = 'blue';
                 ctx.fill();
                 
-                // Hands
+                // Hand (only on the left side)
                 ctx.beginPath();
-                ctx.moveTo(-20, -20);
-                ctx.lineTo(-30, -30);
-                ctx.moveTo(20, -20);
-                ctx.lineTo(30, -30);
+                ctx.moveTo(-20, 0);
+                ctx.lineTo(-40, 0);
                 ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 5;
                 ctx.stroke();
                 
                 ctx.restore();
             },
             update() {
-                // Apply acceleration based on key presses
-                if (keys['w']) this.vy -= this.acceleration;
-                if (keys['s']) this.vy += this.acceleration;
-                if (keys['a']) this.vx -= this.acceleration;
-                if (keys['d']) this.vx += this.acceleration;
+                if (this.inVehicle) {
+                    // Update vehicle position when driving
+                    if (keys['w']) {
+                        this.inVehicle.vy -= this.inVehicle.acceleration;
+                    }
+                    if (keys['s']) {
+                        this.inVehicle.vy += this.inVehicle.acceleration;
+                    }
+                    this.inVehicle.update();
+                    this.x = this.inVehicle.x;
+                    this.y = this.inVehicle.y;
+                } else {
+                    // Normal player movement
+                    if (keys['w']) this.vy -= this.acceleration;
+                    if (keys['s']) this.vy += this.acceleration;
+                    if (keys['a']) this.vx -= this.acceleration;
+                    if (keys['d']) this.vx += this.acceleration;
 
-                // Apply deceleration
+                    this.vx *= this.deceleration;
+                    this.vy *= this.deceleration;
+
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    if (speed > this.maxSpeed) {
+                        const ratio = this.maxSpeed / speed;
+                        this.vx *= ratio;
+                        this.vy *= ratio;
+                    }
+
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    this.x = Math.max(0, Math.min(WORLD_SIZE, this.x));
+                    this.y = Math.max(0, Math.min(WORLD_SIZE, this.y));
+                }
+
+                // Update camera position
+                camera.x = this.x - canvas.width / 2;
+                camera.y = this.y - canvas.height / 2;
+            }
+        };
+
+        // Vehicles
+        class Vehicle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.width = 200;
+                this.height = 120;
+                this.wheelAngle = 0;
+                this.acceleration = 0.2;
+                this.deceleration = 0.95;
+                this.maxSpeed = 8;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x - camera.x, this.y - camera.y);
+
+                // Body
+                ctx.fillStyle = 'gray';
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+
+                // Wheels
+                ctx.fillStyle = 'black';
+                const wheelSize = 30;
+                const wheelPositions = [
+                    { x: -this.width/2 + 20, y: -this.height/2 },
+                    { x: this.width/2 - wheelSize - 20, y: -this.height/2 },
+                    { x: -this.width/2 + 20, y: this.height/2 - wheelSize },
+                    { x: this.width/2 - wheelSize - 20, y: this.height/2 - wheelSize }
+                ];
+
+                wheelPositions.forEach((pos, index) => {
+                    ctx.save();
+                    ctx.translate(pos.x + wheelSize / 2, pos.y + wheelSize / 2);
+                    if (index < 2) {  // Front wheels
+                        ctx.rotate(this.wheelAngle);
+                    }
+                    ctx.fillRect(-wheelSize / 2, -wheelSize / 2, wheelSize, wheelSize);
+                    ctx.restore();
+                });
+
+                // Seats
+                ctx.fillStyle = 'lightblue';
+                ctx.fillRect(-20, -20, 40, 40);
+                ctx.fillRect(20, -20, 40, 40);
+
+                ctx.restore();
+            }
+
+            update() {
                 this.vx *= this.deceleration;
                 this.vy *= this.deceleration;
 
-                // Limit speed
                 const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                 if (speed > this.maxSpeed) {
                     const ratio = this.maxSpeed / speed;
@@ -96,102 +192,27 @@
                     this.vy *= ratio;
                 }
 
-                // Update position
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // Keep player within canvas bounds
-                this.x = Math.max(20, Math.min(canvas.width - 20, this.x));
-                this.y = Math.max(20, Math.min(canvas.height - 20, this.y));
+                this.x = Math.max(0, Math.min(WORLD_SIZE, this.x));
+                this.y = Math.max(0, Math.min(WORLD_SIZE, this.y));
             }
-        };
-
-        // AI players
-        const aiPlayers = [];
-        for (let i = 0; i < 5; i++) {
-            aiPlayers.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                speed: 2,
-                angle: Math.random() * Math.PI * 2,
-                draw() {
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.angle);
-                    
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 20, 0, Math.PI * 2);
-                    ctx.fillStyle = 'red';
-                    ctx.fill();
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(-20, -20);
-                    ctx.lineTo(-30, -30);
-                    ctx.moveTo(20, -20);
-                    ctx.lineTo(30, -30);
-                    ctx.strokeStyle = 'red';
-                    ctx.stroke();
-                    
-                    ctx.restore();
-                },
-                update() {
-                    this.x += Math.cos(this.angle) * this.speed;
-                    this.y += Math.sin(this.angle) * this.speed;
-                    
-                    if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
-                        this.angle = Math.random() * Math.PI * 2;
-                    }
-                }
-            });
         }
 
-        // Vehicles
         const vehicles = [
-            { x: 200, y: 200, width: 200, height: 120, wheelAngle: 0 },
-            { x: 600, y: 400, width: 200, height: 120, wheelAngle: 0 }
+            new Vehicle(WORLD_SIZE / 2 - 300, WORLD_SIZE / 2),
+            new Vehicle(WORLD_SIZE / 2 + 300, WORLD_SIZE / 2)
         ];
-
-        function drawVehicle(vehicle) {
-            ctx.save();
-            ctx.translate(vehicle.x, vehicle.y);
-
-            // Body
-            ctx.fillStyle = 'gray';
-            ctx.fillRect(0, 0, vehicle.width, vehicle.height);
-
-            // Wheels
-            ctx.fillStyle = 'black';
-            const wheelSize = 30;
-            const wheelPositions = [
-                { x: 20, y: 0 },
-                { x: vehicle.width - wheelSize - 20, y: 0 },
-                { x: 20, y: vehicle.height - wheelSize },
-                { x: vehicle.width - wheelSize - 20, y: vehicle.height - wheelSize }
-            ];
-
-            wheelPositions.forEach((pos, index) => {
-                ctx.save();
-                ctx.translate(pos.x + wheelSize / 2, pos.y + wheelSize / 2);
-                if (index < 2) {  // Front wheels
-                    ctx.rotate(vehicle.wheelAngle);
-                }
-                ctx.fillRect(-wheelSize / 2, -wheelSize / 2, wheelSize, wheelSize);
-                ctx.restore();
-            });
-
-            // Seats
-            ctx.fillStyle = 'lightblue';
-            ctx.fillRect(vehicle.width / 2 - 40, 20, 40, 40);
-            ctx.fillRect(vehicle.width / 2, 20, 40, 40);
-
-            ctx.restore();
-        }
 
         // Input handling
         const keys = {};
         document.addEventListener('keydown', (e) => {
             keys[e.key] = true;
             updateKeyDisplay(e.key, true);
+            if (e.key === 'e' || e.key === 'E') {
+                toggleVehicle();
+            }
         });
         document.addEventListener('keyup', (e) => {
             keys[e.key] = false;
@@ -211,34 +232,49 @@
 
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            const mouseX = e.clientX - rect.left + camera.x;
+            const mouseY = e.clientY - rect.top + camera.y;
             player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
         });
 
+        function toggleVehicle() {
+            if (player.inVehicle) {
+                player.inVehicle = null;
+            } else {
+                for (let vehicle of vehicles) {
+                    const dx = player.x - vehicle.x;
+                    const dy = player.y - vehicle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < 100) {
+                        player.inVehicle = vehicle;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function drawRoad() {
+            ctx.fillStyle = '#8B4513';  // Brown color for dirt road
+            ctx.fillRect(WORLD_SIZE / 2 - ROAD_WIDTH / 2 - camera.x, 0 - camera.y, ROAD_WIDTH, WORLD_SIZE);
+            ctx.fillRect(0 - camera.x, WORLD_SIZE / 2 - ROAD_WIDTH / 2 - camera.y, WORLD_SIZE, ROAD_WIDTH);
+        }
+
         function update() {
             player.update();
-            aiPlayers.forEach(ai => ai.update());
-
-            // Update vehicle wheel angles
-            vehicles.forEach(vehicle => {
-                const nearVehicle = Math.abs(player.x - vehicle.x) < 100 && Math.abs(player.y - vehicle.y) < 100;
-                if (nearVehicle) {
-                    if (keys['a']) vehicle.wheelAngle = -Math.PI / 6;
-                    else if (keys['d']) vehicle.wheelAngle = Math.PI / 6;
-                    else vehicle.wheelAngle = 0;
-                } else {
-                    vehicle.wheelAngle = 0;
-                }
-            });
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            vehicles.forEach(drawVehicle);
+            ctx.fillStyle = '#90EE90';  // Light green for grass
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+
+            drawRoad();
+            vehicles.forEach(v => v.draw());
             player.draw();
-            aiPlayers.forEach(ai => ai.draw());
+
+            ctx.restore();
         }
 
         function gameLoop() {
