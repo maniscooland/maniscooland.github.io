@@ -1,30 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Royale Game</title>
+    <title>Massive World Battle</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; }
+        * { margin: 0; padding: 0; overflow: hidden; }
         canvas { display: block; }
-        #menu { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; }
-        #mainMenu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background: rgba(0, 0, 0, 0.7); padding: 20px; border-radius: 10px; }
-        #mainMenu h1 { color: white; }
-        #mainMenu button { display: block; width: 200px; padding: 10px; margin: 10px auto; font-size: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="mainMenu">
-        <h1>Battle Royale Game</h1>
-        <button id="startButton">Start Game</button>
-    </div>
-    <div id="menu" style="display:none;">
-        <h3>Choose Weapon</h3>
-        <select id="weaponSelect"></select>
-        <div id="weaponPreview" style="width:100px;height:100px;background:#444;"></div>
-        <input id="username" placeholder="Enter username">
-        <button id="startGame">Start Game</button>
-    </div>
     <canvas id="gameCanvas"></canvas>
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -32,200 +15,258 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const map = {
-            width: 4000,
-            height: 3000,
-            roadWidth: 200,
-            buildings: [],
-            doors: []
+        const glove1 = new Image();
+        const glove2 = new Image();
+        glove1.src = 'ga1.png';
+        glove2.src = 'ga2.png';
+
+        Promise.all([
+            new Promise(resolve => glove1.onload = resolve),
+            new Promise(resolve => glove2.onload = resolve)
+        ]).then(() => {
+            gameLoop();
+        });
+
+        const WORLD_WIDTH = 90000;
+        const WORLD_HEIGHT = 90000;
+        const SCENE_SIZE = WORLD_WIDTH / 2;
+
+        const SCENES = {
+            forest: { background: '#2D5A27', pathColor: '#8B4513', pathBorder: '#654321' },
+            desert: { background: '#DAA520', pathColor: '#D2691E', pathBorder: '#8B4513' },
+            mountain: { background: '#4A5D23', pathColor: '#8B4513', pathBorder: '#654321' },
+            lake: { background: '#1E4D2B', pathColor: '#8B4513', pathBorder: '#654321' }
         };
 
-        const player = {
-            x: 400, y: 300, width: 30, height: 30, speed: 3, angle: 0,
-            inVehicle: null, inBuilding: null, gun: null, ammo: 400,
-            magazineSize: 10, magazineAmmo: 10, username: "Player",
-            health: 100
+        const paths = [
+            {x: 0, y: WORLD_HEIGHT/2 - 1000, width: WORLD_WIDTH, height: 2000},
+            {x: WORLD_WIDTH/2 - 1000, y: 0, width: 2000, height: WORLD_HEIGHT},
+            {x: WORLD_WIDTH/4, y: WORLD_HEIGHT/4, width: 2000, height: WORLD_HEIGHT/2, rotation: Math.PI/4},
+            {x: WORLD_WIDTH*3/4, y: WORLD_HEIGHT/4, width: 2000, height: WORLD_HEIGHT/2, rotation: -Math.PI/4}
+        ];
+
+        const camera = {
+            x: 0,
+            y: 0,
+            scale: 0.25,
+            follow(target) {
+                const targetX = -target.x * this.scale + canvas.width/2;
+                const targetY = -target.y * this.scale + canvas.height/2;
+                this.x += (targetX - this.x) * 0.1;
+                this.y += (targetY - this.y) * 0.1;
+            }
         };
 
-        const vehicles = [];
-        const bullets = [];
-        const camera = { x: 0, y: 0 };
+        class Character {
+            constructor(x, y, team = 'neutral') {
+                this.x = x;
+                this.y = y;
+                this.rotation = 0;
+                this.speed = 15;
+                this.health = 100;
+                this.team = team;
+                this.vehicle = null;
+                this.target = null;
+                this.color = this.getTeamColor();
+                this.isAI = true;
+            }
 
-        const vehicleTypes = [
-            { type:'car', width:50, height:30, speed:4, color:'#4286f4', capacity:2 },
-            { type:'truck', width:70, height:40, speed:3, color:'#41f468', capacity:2 }
-        ];
+            getTeamColor() {
+                return { 'red': '#ff4444', 'blue': '#4444ff', 'green': '#44ff44', 'player': '#ffff44' }[this.team] || '#aaaaaa';
+            }
 
-        const guns = [
-            { name:'pistol', color:'#8B4513', length :40 , image:'pistol.png', displayImage:'pistolD.png', bulletCount :1 , damage :2 },
-            { name:'shotgun', color:'#A0522D', length :50 , image:'shotgun.png', displayImage:'shotgunD.png', bulletCount :4 , damage :5 },
-            { name:'rifle', color:'#D2691E', length :60 , image:'rifle.png', displayImage:'rifleD.png', bulletCount :1 , damage :3 }
-        ];
+            draw() {
+                if (this.vehicle) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(-40, -60, 80, 10);
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(-40, -60, 80 * (this.health/100), 10);
+                ctx.beginPath();
+                ctx.arc(0, 0, 40, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.drawImage(glove1, 30, -20, 40, 40);
+                ctx.drawImage(glove2, 30, 0, 40, 40);
+                ctx.restore();
+            }
 
-        const playerImage = new Image();
-        playerImage.src = 'player.png';
+            update() {
+                if (this.health <= 0) return;
+                if (this.isAI) {
+                    if (!this.vehicle) {
+                        if (!this.target || this.reachedTarget()) {
+                            this.target = { x: Math.random() * WORLD_WIDTH, y: Math.random() * WORLD_HEIGHT };
+                        }
+                        const dx = this.target.x - this.x;
+                        const dy = this.target.y - this.y;
+                        this.rotation = Math.atan2(dy, dx);
+                        this.x += Math.cos(this.rotation) * this.speed;
+                        this.y += Math.sin(this.rotation) * this.speed;
+                        if (Math.random() < 0.01) {
+                            vehicles.forEach(v => {
+                                if (!v.driver && Math.hypot(v.x - this.x, v.y - this.y) < 100) {
+                                    this.vehicle = v;
+                                    v.driver = this;
+                                }
+                            });
+                        }
+                    } else {
+                        if (Math.random() < 0.005) {
+                            this.vehicle.driver = null;
+                            this.vehicle = null;
+                        }
+                    }
+                }
+                this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
+                this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
+            }
 
-        const aiPlayers = [];
-        
-        for (let e = 0; e < 10; e++) {
-            aiPlayers.push({
-                x: Math.random() * map.width,
-                y: Math.random() * map.height,
-                width: 40,
-                height: 40,
-                speed: 2,
-                angle: Math.random() * Math.PI * 2,
-                inVehicle:null,
-                inBuilding:null,
-                gun:guns[Math.floor(Math.random() * guns.length)],
-                ammo :400,
-                magazineSize :10,
-                magazineAmmo :10,
-                state:"wandering",
-                target:null,
-                targetTimer :0,
-                username:"AI_"+e,
-                health :100
-            });
+            reachedTarget() {
+                return Math.hypot(this.target.x - this.x, this.target.y - this.y) < 100;
+            }
         }
 
-       for (let e=0;e<20;e++) {
-           const n={
-               x :Math.random() * map.width,
-               y :Math.random() * map.height,
-               width :200 + (200 * Math.random()),
-               height :200 + (200 * Math.random()),
-               interior:{color:"#D2B48C"}
-           };
-           
-           let t=false;
-           
-           for (const a of map.buildings) if (checkCollision(n,a)) {
-               t=true;
-               break;
-           }
-           
-           if (!t) {
-               map.buildings.push(n);
-               map.doors.push({x:n.x+n.width/2,y:n.y+n.height,width :40,height :60,isOpen:false,openAngle :0});
-           }
-       }
+        class Vehicle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 160;
+                this.height = 80;
+                this.wheelBase = 80;
+                this.wheelAngle = 0;
+                this.maxWheelAngle = Math.PI/4;
+                this.speed = 0;
+                this.maxSpeed = 30;
+                this.acceleration = 0.5;
+                this.deceleration = 0.3;
+                this.angle = 0;
+                this.driver = null;
+            }
 
-       for (let e=0;e<4;e++) {
-           const n=vehicleTypes[Math.floor(Math.random()*vehicleTypes.length)];
-           
-           vehicles.push({
-               ...n,
-               x: Math.random() * map.width,
-               y: Math.random() * map.height,
-               angle: Math.random() * Math.PI * 2,
-               steeringAngle: 0,
-               maxSteeringAngle: Math.PI / 4,
-               driver:null,
-               passenger:null
-           });
-       }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.fillStyle = '#888888';
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                ctx.restore();
+            }
 
-       function drawMap(){
-           ctx.fillStyle="#7CFC00";
-           ctx.fillRect(0,0,canvas.width,canvas.height);
-           ctx.fillStyle="#8B4513";
-           ctx.fillRect(map.width/2-map.roadWidth/2-camera.x,0,map.roadWidth,canvas.height);
-           ctx.fillRect(0,map.height/2-map.roadWidth/2-camera.y,canvas.width,map.roadWidth);
-           ctx.fillStyle="#808080";
-           map.buildings.forEach(e => {
-               ctx.fillRect(e.x-camera.x,e.y-camera.y,e.width,e.height);
-               if(player.inBuilding === e) {
-                   ctx.fillStyle=e.interior.color;
-                   ctx.fillRect(e.x-camera.x,e.y-camera.y,e.width,e.height);
-                   ctx.fillStyle="#808080";
-               }
-           });
-           ctx.fillStyle="#8B4513";
-           map.doors.forEach(e => {
-               ctx.save();
-               ctx.translate(e.x-camera.x,e.y-camera.y);
-               ctx.rotate(e.openAngle);
-               ctx.fillRect(-e.width/2,0,e.width,e.height);
-               ctx.restore();
-           });
-       }
+            update() {
+                if (this.driver) {
+                    if (this.speed < this.maxSpeed) {
+                        this.speed += this.acceleration;
+                    }
+                    this.angle += this.wheelAngle * this.speed / this.wheelBase;
+                } else {
+                    if (this.speed > 0) {
+                        this.speed -= this.deceleration;
+                    } else {
+                        this.speed = 0;
+                    }
+                }
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
+                this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
+                if (this.driver) {
+                    this.driver.x = this.x;
+                    this.driver.y = this.y;
+                }
+            }
+        }
 
-       function drawPlayer(p,inVehicle=false,v=null){
-           ctx.save();
-           inVehicle ? ctx.translate(v.x-camera.x,v.y-camera.y) : ctx.translate(p.x-camera.x,p.y-camera.y);
-           ctx.rotate(p.angle + Math.PI / 2);
-           ctx.drawImage(playerImage,-p.width/2,-p.height/2,p.width,p.height);
-           if (p.gun) {
-               ctx.drawImage(gunImages[p.gun.name], p.width / 2 - p.gun.length / 4 -5 , -p.height /4 - p.gun.length /8 , p.gun.length +20 , p.gun.length /4);
-           }
-           ctx.restore();
-       }
+        const player = new Character(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 'player');
+        player.isAI = false;
 
-       function drawHUD(){
-           ctx.fillStyle="#000000";
-           ctx.font="20px Arial";
-           ctx.fillText(`Health:${player.health}`,10 ,30 );
-           ctx.fillText(`Gun:${player.gun ? player.gun.name : "None"}`,10 ,60 );
-           ctx.fillText(`Ammo:${player.magazineAmmo}/${player.ammo}`,10 ,90 );
-       }
+        const characters = [player];
+        const vehicles = [];
 
-       function checkCollision(a,b){
-           return a.x<b.x+b.width && a.x+a.width>b.x && a.y<b.y+b.height && a.y+a.height>b.y;
-       }
+        for (let i = 0; i < 100; i++) {
+            characters.push(new Character(Math.random() * WORLD_WIDTH, Math.random() * WORLD_HEIGHT, ['red', 'blue', 'green'][Math.floor(Math.random() * 3)]));
+        }
 
-       function updateAI(ai){
-          // AI behavior logic here
-          // Similar to previous implementations
-       }
+        for (let i = 0; i < 50; i++) {
+            vehicles.push(new Vehicle(Math.random() * WORLD_WIDTH, Math.random() * WORLD_HEIGHT));
+        }
 
-       function update(){
-          // Update player and AI positions
-          // Handle input and game logic
-       }
+        function drawWorld() {
+            ctx.save();
+            ctx.translate(camera.x, camera.y);
+            ctx.scale(camera.scale, camera.scale);
 
-       function render(){
-          // Clear the canvas and draw everything
-          ctx.clearRect(0,0,canvas.width,canvas.height);
-          drawMap();
-          vehicles.forEach(drawVehicle);
-          aiPlayers.forEach(ai => drawPlayer(ai));
-          drawPlayer(player);
-          drawHUD();
-       }
+            const scenes = [
+                { scene: SCENES.forest, x: 0, y: 0 },
+                { scene: SCENES.desert, x: SCENE_SIZE, y: 0 },
+                { scene: SCENES.mountain, x: 0, y: SCENE_SIZE },
+                { scene: SCENES.lake, x: SCENE_SIZE, y: SCENE_SIZE }
+            ];
 
-       function gameLoop(){
-          update();
-          render();
-          requestAnimationFrame(gameLoop);
-       }
+            scenes.forEach(({ scene, x, y }) => {
+                ctx.fillStyle = scene.background;
+                ctx.fillRect(x, y, SCENE_SIZE, SCENE_SIZE);
+            });
 
-       document.getElementById("startButton").addEventListener("click", () => {
-          document.getElementById("mainMenu").style.display = "none";
-          document.getElementById("menu").style.display = "block";
-          gameLoop();
-       });
+            paths.forEach(path => {
+                ctx.save();
+                ctx.translate(path.x + path.width / 2, path.y + path.height / 2);
+                if (path.rotation) ctx.rotate(path.rotation);
+                ctx.fillStyle = SCENES.forest.pathColor;
+                ctx.fillRect(-path.width / 2, -path.height / 2, path.width, path.height);
+                ctx.strokeStyle = SCENES.forest.pathBorder;
+                ctx.lineWidth = 20;
+                ctx.strokeRect(-path.width / 2, -path.height / 2, path.width, path.height);
+                ctx.restore();
+            });
 
-      // Initialize weapon selection
-      const weaponSelect = document.getElementById("weaponSelect");
-      guns.forEach(gun => {
-          const option = document.createElement("option");
-          option.value = gun.name;
-          option.textContent = gun.name;
-          weaponSelect.appendChild(option);
-      });
+            vehicles.forEach(v => v.draw());
+            characters.forEach(c => c.draw());
 
-      weaponSelect.addEventListener("change", () => {
-          const selectedGun = guns.find(g => g.name === weaponSelect.value);
-          document.getElementById("weaponPreview").style.backgroundImage = `url(${selectedGun.displayImage})`;
-      });
+            ctx.restore();
+        }
 
-      document.getElementById("startGame").addEventListener("click", () => {
-          player.gun = guns.find(g => g.name === weaponSelect.value);
-          player.username = document.getElementById("username").value || "Player";
-          document.getElementById("menu").style.display = "none";
-      });
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            characters.forEach(c => c.update());
+            vehicles.forEach(v => v.update());
+
+            camera.follow(player);
+            drawWorld();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'w': player.y -= player.speed; break;
+                case 's': player.y += player.speed; break;
+                case 'a': player.x -= player.speed; break;
+                case 'd': player.x += player.speed; break;
+                case 'e':
+                    if (!player.vehicle) {
+                        const nearbyVehicle = vehicles.find(v => !v.driver && Math.hypot(v.x - player.x, v.y - player.y) < 100);
+                        if (nearbyVehicle) {
+                            player.vehicle = nearbyVehicle;
+                            nearbyVehicle.driver = player;
+                        }
+                    } else {
+                        player.vehicle.driver = null;
+                        player.vehicle = null;
+                    }
+                    break;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) / camera.scale - camera.x / camera.scale;
+            const mouseY = (e.clientY - rect.top) / camera.scale - camera.y / camera.scale;
+            player.rotation = Math.atan2(mouseY - player.y, mouseX - player.x);
+        });
     </script>
 </body>
 </html>
