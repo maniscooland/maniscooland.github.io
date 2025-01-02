@@ -3,9 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Dudes IO-like Game with Vehicles and Large Map</title>
+    <title>Battle Dudes IO-like Game with Vehicles and Full Screen</title>
     <style>
-        canvas { border: 1px solid black; }
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrolling */
+        }
+        canvas {
+            display: block; /* Remove default inline spacing */
+            background-color: #90EE90; /* Light green for grass */
+        }
         #keys {
             position: fixed;
             bottom: 20px;
@@ -32,7 +40,7 @@
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <div id="keys">
         <div></div>
         <div class="key" id="key-w">W</div>
@@ -44,6 +52,10 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
+        // Set canvas to full screen
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
         const WORLD_SIZE = 90000; // World size
         const ROAD_WIDTH = 1000;   // Width of the dirt road
@@ -193,14 +205,14 @@
                         this.vy *= -this.deceleration; 
                     }
                     
-                    if (Math.abs(this.vy) < 1) { 
+                    if (Math.abs(this.vy) < .1) { 
                         this.vy = 0; 
                     }
                 }
 
-                // Update vehicle position based on velocity
-                if (Math.abs(this.vy) > .1) { 
-                  const angleRad = Math.atan2(this.vy, Math.abs(this.vx));  
+              // Update vehicle position based on velocity
+              if (Math.abs(this.vy) > .1) { 
+                  const angleRad = Math.atan2(this.vy , Math.abs(this.vx));
                   if (this.vx > .1 || keys['d']) {  
                       angleRad += Math.PI/6;  
                   } else if (this.vx < -.1 || keys['a']) {  
@@ -217,8 +229,7 @@
               }
 
               // Keep vehicle within world bounds
-              if (this.x < WORLD_SIZE && 
-                  ((this.x + player.width/2) > WORLD_SIZE)) {  
+              if (this.x < WORLD_SIZE && ((this.x + player.width/2) > WORLD_SIZE)) {  
                  player.x -= speedX;  
                  player.y -= speedY;  
               }   
@@ -312,6 +323,13 @@
       }
 
       gameLoop();   
+
+      window.addEventListener('resize', () => {     
+         canvas.width = window.innerWidth;     
+         canvas.height= window.innerHeight ;     
+         camera.width=canvas.width ;     
+         camera.height=canvas.height ;    
+     });    
     </script>
 </body>
 </html>
